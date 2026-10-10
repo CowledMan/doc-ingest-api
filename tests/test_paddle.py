@@ -267,6 +267,25 @@ class TestPaddleLandingPage:
         assert "Paddle.Checkout.open" in response.text
         assert "Get Starter" in response.text
         assert "Get Pro" in response.text
+        assert "PricePreview" in response.text
+        assert "price_ids.starter" in response.text
+        assert "price_ids.pro" in response.text
+
+    def test_landing_mock_no_pricepreview_call(self) -> None:
+        client, _ = _app_with_rate_limits(MockParser("markitdown"))
+        response = client.get("/")
+        assert response.status_code == 200
+        assert "cdn.paddle.com/paddle" in response.text
+        assert "PricePreview" in response.text
+
+    def test_landing_price_cells_have_ids(self) -> None:
+        client = _paddle_app()
+        response = client.get("/")
+        assert response.status_code == 200
+        assert 'id="price-starter"' in response.text
+        assert 'id="price-pro"' in response.text
+        assert 'id="btn-starter"' in response.text
+        assert 'id="btn-pro"' in response.text
 
     def test_billing_success_page(self) -> None:
         """The post-checkout success page renders."""

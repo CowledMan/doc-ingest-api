@@ -521,9 +521,10 @@ def create_app(
             name = html.escape(str(plan.get("name", "")))
             pages = html.escape(str(plan.get("monthly_pages", "")))
             price = html.escape(str(plan.get("price_usd", "")))
+            plan_key = name.lower().replace(" ", "-")
             rows.append(
-                f"<tr><td>{name}</td><td>{pages} pages/mo</td>"
-                f'<td>${price}/mo</td></tr>'
+                f'<tr><td>{name}</td><td>{pages} pages/mo</td>'
+                f'<td id="price-{plan_key}">${price}/mo</td></tr>'
             )
         return "\n".join(rows)
 
@@ -584,6 +585,36 @@ async function loadBillingConfig() {{
       Paddle.Environment.set(cfg.environment);
       Paddle.Initialize({{ token: cfg.client_token }});
       window._paddleCfg = cfg;
+      // PricePreview for localized pricing (sandbox/live only)
+      try {{
+        Paddle.PricePreview({{
+          items: [
+            {{ priceId: cfg.price_ids.starter, quantity: 1 }},
+            {{ priceId: cfg.price_ids.pro, quantity: 1 }},
+          ],
+        }}).then(function(result) {{
+          if (result && result.lineItems) {{
+            result.lineItems.forEach(function(item, i) {{
+              var planKey = i === 0 ? "starter" : "pro";
+              var total = item.formattedTotals && item.formattedTotals.total;
+              if (!total) return;
+              // Update pricing table price cell
+              var priceCell = document.getElementById("price-" + planKey);
+              if (priceCell) priceCell.textContent = total + "/mo";
+              // Update button text
+              var btn = document.getElementById("btn-" + planKey);
+              if (btn) {{
+                var planName = planKey.charAt(0).toUpperCase() + planKey.slice(1);
+                btn.textContent = "Get " + planName + " \u2014 " + total + "/mo";
+              }}
+            }});
+          }}
+        }}).catch(function() {{
+          // PricePreview failed; keep hardcoded fallback
+        }});
+      }} catch(pe) {{
+        // PricePreview unavailable; keep hardcoded fallback
+      }}
     }}
   }} catch(e) {{ console.warn("billing config unavailable"); }}
 }}
@@ -620,8 +651,8 @@ loadBillingConfig();
   <input id="api-key-input" type="text" placeholder="dip_... or key name"
     style="padding:.4rem;border:1px solid #ccc;border-radius:4px;width:240px">
   <div style="margin-top:.8rem">
-    <button onclick="openCheckout('starter')" style="background:#457b9d;color:#fff;border:none;padding:.6rem 1.5rem;border-radius:6px;cursor:pointer;font-size:.9rem">Get Starter — $19/mo</button>
-    <button onclick="openCheckout('pro')" style="background:#1d3557;color:#fff;border:none;padding:.6rem 1.5rem;border-radius:6px;cursor:pointer;font-size:.9rem;margin-left:.5rem">Get Pro — $99/mo</button>
+    <button id="btn-starter" onclick="openCheckout('starter')" style="background:#457b9d;color:#fff;border:none;padding:.6rem 1.5rem;border-radius:6px;cursor:pointer;font-size:.9rem">Get Starter — $19/mo</button>
+    <button id="btn-pro" onclick="openCheckout('pro')" style="background:#1d3557;color:#fff;border:none;padding:.6rem 1.5rem;border-radius:6px;cursor:pointer;font-size:.9rem;margin-left:.5rem">Get Pro — $99/mo</button>
   </div>
   <p class="note" style="margin-top:.5rem">After checkout, your API key plan is upgraded automatically via webhook.</p>
 </div>
