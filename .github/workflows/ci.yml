@@ -21,3 +21,16 @@ jobs:
         run: uv run ruff check .
       - name: Run mypy
         run: uv run mypy src benchmarks scripts sdk
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image (no push)
+        run: docker build --tag doc-ingest-api:ci .
+      - name: Verify healthz responds
+        run: |
+          docker run --rm -d --name ci-test -p 8000:8000 doc-ingest-api:ci
+          sleep 5
+          curl -f http://localhost:8000/healthz || (docker logs ci-test && exit 1)
+          docker stop ci-test

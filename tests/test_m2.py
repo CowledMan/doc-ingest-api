@@ -181,3 +181,43 @@ class TestDemoKeys:
         response = client.post("/v1/demo-keys")
         assert response.status_code == 429
         assert "Retry-After" in response.headers
+
+    def test_demo_keys_response_has_sample_file_url(self) -> None:
+        client, _ = _app_with_rate_limits(MockParser("markitdown"), ip_limit=100)
+        demo = client.post("/v1/demo-keys")
+        data = demo.json()
+        assert data["sample_file_url"] == "/samples/demo.pdf"
+
+    def test_demo_parse_response_has_upgrade_url(self) -> None:
+        parser = MockParser("markitdown", markdown="# Demo", metadata={"page_count": 1})
+        client, _ = _app_with_rate_limits(parser, ip_limit=100, key_limit=100)
+        demo = client.post("/v1/demo-keys")
+        headers = {"X-API-Key": demo.json()["api_key"]}
+        response = client.post(
+            "/v1/parse",
+            headers=headers,
+            files={"file": ("sample.txt", b"hello", "text/plain")},
+        )
+        assert response.status_code == 200
+        assert response.json()["upgrade_url"] == "/#pricing"
+
+    def test_non_demo_parse_response_has_no_upgrade_url(self) -> None:
+        client, api_key = _app_with_rate_limits(
+            MockParser("markitdown", markdown="# Paid"), key_limit=100
+        )
+        headers = {"X-API-Key": api_key}
+        response = client.post(
+            "/v1/parse",
+            headers=headers,
+            files={"file": ("sample.txt", b"hello", "text/plain")},
+        )
+        assert response.status_code == 200
+        assert "upgrade_url" not in response.json()
+
+    def test_sample_pdf_route_serves_file(self) -> None:
+        client, _ = _app_with_rate_limits(MockParser("markitdown"), ip_limit=100)
+        response = client.get("/samples/demo.pdf")
+        assert response.status_code == 200
+        assert response.headers["content-type"] == "application/pdf"
+        assert len(response.content) > 0
+        assert len(response.content) < 200 * 1024

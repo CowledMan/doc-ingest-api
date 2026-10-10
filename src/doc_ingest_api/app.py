@@ -23,7 +23,7 @@ from fastapi import (
     Request,
     UploadFile,
 )
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from sqlalchemy.orm import Session, sessionmaker
 
 from .billing import create_billing_provider
@@ -261,7 +261,10 @@ def create_app(
             api_key_id=api_key.id,
             pages=_page_count(metadata),
         )
-        return {"markdown": result.markdown, "metadata": metadata}
+        response: dict[str, Any] = {"markdown": result.markdown, "metadata": metadata}
+        if api_key.plan == "demo":
+            response["upgrade_url"] = "/#pricing"
+        return response
 
     @router.post("/v1/parse/async", status_code=202, tags=["parse"])
     async def queue_parse_document(
@@ -481,7 +484,17 @@ a{{color:#457b9d}}
             "monthly_page_quota": 20,
             "expires_at": expires.isoformat(),
             "upgrade_url": "/#pricing",
+            "sample_file_url": "/samples/demo.pdf",
         }
 
-    return app
+    @router.get("/samples/demo.pdf", tags=["demo"], include_in_schema=False)
+    def serve_demo_sample() -> FileResponse:
+        """Serve the built-in demo sample PDF."""
+        sample_path = Path("assets/samples/demo.pdf")
+        return FileResponse(
+            path=sample_path,
+            media_type="application/pdf",
+            filename="demo.pdf",
+        )
+
     return app
