@@ -131,7 +131,7 @@ class TestBillingRoutes:
         assert response.status_code == 401
 
     def test_real_stripe_key_raises_not_implemented(self) -> None:
-        with pytest.raises(NotImplementedError, match="M2"):
+        with pytest.raises(NotImplementedError, match="Paddle"):
             create_billing_provider(
                 stripe_secret_key="sk_test_real",
                 stripe_webhook_secret="whsec_test",

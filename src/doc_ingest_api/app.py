@@ -168,6 +168,10 @@ def create_app(
     billing_provider = create_billing_provider(
         stripe_secret_key=settings.stripe_api_key,
         stripe_webhook_secret=settings.stripe_webhook_secret,
+        paddle_env=settings.paddle_env,
+        paddle_api_key=settings.paddle_api_key,
+        paddle_webhook_secret=settings.paddle_webhook_secret,
+        paddle_client_token=settings.paddle_client_token,
     )
     if rate_limiter is None:
         rate_limiter = InMemoryRateLimiter()
@@ -363,17 +367,71 @@ def create_app(
         }
 
     @router.post("/v1/billing/webhook", tags=["billing"])
-    def billing_webhook(
+    async def billing_webhook(
         request: Request,
+        session: Annotated[Session, Depends(_get_db)],
     ) -> dict[str, Any]:
-        """Verify webhook signature header and acknowledge (mock mode)."""
+        """Verify webhook signature and update subscription state.
+
+        Paddle mode: verifies HMAC-SHA256 signature, processes subscription
+        events, and syncs plan/quota to the local API key. Mock mode keeps
+        the existing permissive behaviour.
+        """
         state = _app_state(request)
+        raw_body = await request.body()
+
+        if state.settings.paddle_env in ("sandbox", "live"):
+            signature = request.headers.get("paddle-signature", "")
+            from .paddle_billing import verify_paddle_webhook_signature
+
+            if not verify_paddle_webhook_signature(
+                raw_body=raw_body,
+                signature_header=signature,
+                secret=state.settings.paddle_webhook_secret,
+            ):
+                raise _api_error(401, "invalid_signature", "Webhook signature verification failed")
+
+            try:
+                event = json.loads(raw_body)
+            except json.JSONDecodeError:
+                raise _api_error(400, "invalid_payload", "Webhook body is not valid JSON") from None
+
+            event_id = event.get("event_id", "")
+            event_type = event.get("event_type", "")
+            event_data = event.get("data", {})
+            custom = event_data.get("custom_data") or {}
+            api_key_id = custom.get("api_key_id")
+
+            plan_quotas = {"free": 100, "starter": 500, "pro": 5000}
+            if event_type in ("subscription.created", "subscription.updated", "subscription.canceled") and api_key_id:
+                if event_type == "subscription.canceled":
+                    plan = "free"
+                else:
+                    items = event_data.get("items", [])
+                    plan = "free"
+                    if items:
+                        price_custom = items[0].get("price", {}).get("custom_data") or {}
+                        plan = str(price_custom.get("plan", "free"))
+                quota = plan_quotas.get(plan, 100)
+                with state.session_factory.begin() as db:
+                    key = db.get(ApiKey, int(api_key_id))
+                    if key is not None:
+                        key.plan = plan
+                        key.monthly_page_quota = quota
+
+            return {
+                "billing_provider": "paddle",
+                "verified": True,
+                "event_type": event_type,
+                "event_id": event_id,
+            }
+
+        # Mock mode (existing behaviour)
         signature = request.headers.get("stripe-signature", "")
         if not signature:
             raise _api_error(400, "missing_signature", "Stripe-Signature header is required")
-        body = b""
         verification = state.billing_provider.verify_webhook_signature(
-            payload=body,
+            payload=raw_body,
             signature_header=signature,
             secret=state.settings.stripe_webhook_secret,
         )
@@ -401,6 +459,23 @@ def create_app(
             "monthly_page_quota": subscription.monthly_page_quota,
         }
 
+    @router.get("/v1/billing/config", tags=["billing"])
+    def billing_config(
+        request: Request,
+    ) -> dict[str, Any]:
+        """Return public billing configuration for Paddle.js checkout."""
+        state = _app_state(request)
+        result: dict[str, Any] = {}
+        if hasattr(state.billing_provider, "get_config"):
+            result.update(dict(state.billing_provider.get_config()))
+        else:
+            result["client_token"] = ""
+            result["environment"] = "mock"
+        result["price_ids"] = {
+            "starter": state.settings.paddle_price_starter,
+            "pro": state.settings.paddle_price_pro,
+                }
+        return result
     # --- Landing page (self-contained, no frontend framework) ---
 
     def _render_pricing_table() -> str:
@@ -468,6 +543,46 @@ a{{color:#457b9d}}
 <h2>Try it free</h2>
 <pre><code>curl -X POST http://localhost:8000/v1/demo-keys</code></pre>
 <p class="note">No signup required. Demo keys get 20 pages/month.</p>
+
+<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+<script>
+async function loadBillingConfig() {{
+  try {{
+    const res = await fetch("/v1/billing/config");
+    const cfg = await res.json();
+    if (cfg.client_token && cfg.environment !== "mock") {{
+      Paddle.Environment.set(cfg.environment);
+      Paddle.Initialize({{ token: cfg.client_token }});
+      window._paddleCfg = cfg;
+    }}
+  }} catch(e) {{ console.warn("billing config unavailable"); }}
+}}
+function openCheckout(plan) {{
+  if (!window._paddleCfg) {{ alert("Billing not configured"); return; }}
+  const priceId = window._paddleCfg.price_ids[plan];
+  const apiKeyInput = document.getElementById("api-key-input");
+  let customData = {{}};
+  if (apiKeyInput && apiKeyInput.value.trim()) {{
+    customData = {{ api_key_name: apiKeyInput.value.trim() }};
+  }}
+  Paddle.Checkout.open({{
+    items: [{{ priceId: priceId, quantity: 1 }}],
+    custom: customData,
+  }});
+}}
+loadBillingConfig();
+</script>
+
+<div style="margin-top:1rem">
+  <label style="font-size:.85rem">Your API key name or demo key:</label><br>
+  <input id="api-key-input" type="text" placeholder="dip_... or key name"
+    style="padding:.4rem;border:1px solid #ccc;border-radius:4px;width:240px">
+  <div style="margin-top:.8rem">
+    <button onclick="openCheckout('starter')" style="background:#457b9d;color:#fff;border:none;padding:.6rem 1.5rem;border-radius:6px;cursor:pointer;font-size:.9rem">Get Starter — $19/mo</button>
+    <button onclick="openCheckout('pro')" style="background:#1d3557;color:#fff;border:none;padding:.6rem 1.5rem;border-radius:6px;cursor:pointer;font-size:.9rem;margin-left:.5rem">Get Pro — $99/mo</button>
+  </div>
+  <p class="note" style="margin-top:.5rem">After checkout, your API key plan is upgraded automatically via webhook.</p>
+</div>
 </body></html>""")
 
     # --- Demo sandbox ---

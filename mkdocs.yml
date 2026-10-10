@@ -10,6 +10,8 @@ nav:
   - SDK: sdk.md
   - MCP Server: mcp.md
   - Deployment: deploy.md
+  - Paddle Sandbox: paddle-sandbox-testing.md
+  - Launch Checklist: launch-checklist.md
 
 theme:
   name: material

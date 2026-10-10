@@ -27,6 +27,14 @@ class Settings(BaseSettings):
     stripe_api_key: str = ""
     stripe_webhook_secret: str = ""
 
+    # Paddle billing (M2 batch 3). Empty paddle_env = mock (existing behaviour).
+    paddle_env: str = ""
+    paddle_api_key: str = ""
+    paddle_webhook_secret: str = ""
+    paddle_client_token: str = ""
+    paddle_price_starter: str = "pri_01m4knr3h18h4vvw1bsc02q2rd"
+    paddle_price_pro: str = "pri_01m4knr3np11s8zqzgzt8df74q"
+
     parser_anydoc_python: Path | None = None
     parser_markitdown_python: Path | None = None
     parser_docling_python: Path | None = None

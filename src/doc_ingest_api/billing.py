@@ -146,15 +146,29 @@ def create_billing_provider(
     *,
     stripe_secret_key: str,
     stripe_webhook_secret: str,
+    paddle_env: str = "",
+    paddle_api_key: str = "",
+    paddle_webhook_secret: str = "",
+    paddle_client_token: str = "",
 ) -> BillingProvider:
     """Return the appropriate billing provider based on configuration.
 
-    When ``stripe_secret_key`` is empty or absent, a ``MockBillingProvider``
-    is returned. A real Stripe provider will be added in M2.
+    When ``paddle_env`` is empty, a ``MockBillingProvider`` is returned
+    (existing M1/M2 batch 1-2 behaviour unchanged). When set to ``sandbox``
+    or ``live``, a ``PaddleBillingProvider`` is used.
     """
+    if paddle_env in ("sandbox", "live"):
+        from .paddle_billing import PaddleBillingProvider
+
+        return PaddleBillingProvider(
+            paddle_env=paddle_env,
+            api_key=paddle_api_key,
+            webhook_secret=paddle_webhook_secret,
+            client_token=paddle_client_token,
+        )
     if stripe_secret_key:
         raise NotImplementedError(
-            "Real Stripe integration is planned for M2; only the mock provider is available"
+            "Real Stripe integration is not supported; use Paddle (PADDLE_ENV)"
         )
     return MockBillingProvider(webhook_secret=stripe_webhook_secret)
 
