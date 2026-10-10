@@ -52,3 +52,7 @@ def create_mcp_server(client: DocIngestClient | None = None) -> MCPServer:
 def main() -> None:
     """Run the MCP server on stdio."""
     create_mcp_server().run("stdio")
+
+
+if __name__ == "__main__":
+    main()
