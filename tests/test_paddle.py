@@ -154,6 +154,19 @@ class TestPaddleWebhookVerification:
             assert row.monthly_page_quota == 5000
         # We just verify the response was OK; direct DB check needs session.
 
+    def test_subscription_endpoint_reads_local_state_in_paddle_mode(self) -> None:
+        """Paddle mode returns the webhook-synced local plan, never a fake id lookup."""
+        client, _db = _paddle_app_with_db()
+        raw_key = create_api_key(_db.session_factory, name="sub-check")
+        response = client.get(
+            "/v1/billing/subscription", headers={"X-API-Key": raw_key}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data["billing_provider"] == "paddle"
+        assert data["plan_name"] == "free"
+        assert data["status"] == "active"
+
     def test_webhook_canceled_sets_free(self) -> None:
         client = _paddle_app()
         body = _make_webhook_body(event_type="subscription.canceled", plan="starter")

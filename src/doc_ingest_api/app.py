@@ -465,8 +465,19 @@ def create_app(
         request: Request,
         api_key: Annotated[ApiKey, Depends(_get_api_key)],
     ) -> dict[str, Any]:
-        """Return mock subscription status and plan details."""
+        """Return subscription status and plan details."""
         state = _app_state(request)
+        if state.billing_provider.provider_name == "paddle":
+            # Webhooks already sync plan/quota onto the local key; querying
+            # Paddle by a mock-style id would 404 and surface as a 500.
+            return {
+                "billing_provider": "paddle",
+                "subscription_id": None,
+                "status": "active" if api_key.active else "canceled",
+                "plan_name": api_key.plan,
+                "monthly_page_quota": api_key.monthly_page_quota,
+                "used_pages": api_key.used_pages,
+            }
         subscription = state.billing_provider.get_subscription(
             f"sub_test_{api_key.id:08d}"
         )
