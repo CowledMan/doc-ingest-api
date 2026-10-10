@@ -30,3 +30,14 @@ class Settings(BaseSettings):
     parser_anydoc_python: Path | None = None
     parser_markitdown_python: Path | None = None
     parser_docling_python: Path | None = None
+
+    # Rate limiting (M2 batch 1). Redis-backed limiter is a planned M3 item.
+    rate_limit_ip_per_hour: int = 10
+    rate_limit_key_per_minute: int = 60
+
+    # Pricing plans rendered on the landing page; JSON list of plan objects.
+    pricing_plans_json: str = (
+        '[{"name":"Free","monthly_pages":100,"price_usd":0},'
+        '{"name":"Starter","monthly_pages":500,"price_usd":19},'
+        '{"name":"Pro","monthly_pages":5000,"price_usd":99}]'
+    )
