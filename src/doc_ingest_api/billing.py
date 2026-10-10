@@ -62,6 +62,7 @@ class BillingProvider(Protocol):
         price_id: str,
         success_url: str,
         cancel_url: str,
+        api_key_id: int | None = None,
     ) -> CheckoutSessionResult:
         """Create a hosted checkout session and return its URL."""
         ...
@@ -101,9 +102,10 @@ class MockBillingProvider:
         price_id: str,
         success_url: str,
         cancel_url: str,
+        api_key_id: int | None = None,
     ) -> CheckoutSessionResult:
         """Return a fake checkout session with a non-functional URL."""
-        del success_url, cancel_url
+        del success_url, cancel_url, api_key_id
         session_id = f"cs_test_{hashlib.sha256(customer_id.encode()).hexdigest()[:24]}"
         return CheckoutSessionResult(
             id=session_id,

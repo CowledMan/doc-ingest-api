@@ -80,11 +80,17 @@ class PaddleBillingProvider:
         price_id: str,
         success_url: str,
         cancel_url: str,
+        api_key_id: int | None = None,
     ) -> CheckoutSessionResult:
         """Create a Paddle transaction (checkout session)."""
+        custom_data: dict[str, Any] = {"customer_id": customer_id}
+        if api_key_id is not None:
+            # Webhooks echo custom_data back on subscription events, letting
+            # us map an incoming subscription to the local API key.
+            custom_data["api_key_id"] = str(api_key_id)
         payload: dict[str, Any] = {
             "items": [{"price_id": price_id, "quantity": 1}],
-            "custom_data": {"customer_id": customer_id},
+            "custom_data": custom_data,
         }
         response = httpx.post(
             f"{self.base_url}/transactions",

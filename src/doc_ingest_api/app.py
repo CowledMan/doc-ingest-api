@@ -367,6 +367,7 @@ def create_app(
         session_result = state.billing_provider.create_checkout_session(
             customer_id=f"cus_test_{api_key.id:08d}",
             price_id=price_id,
+            api_key_id=api_key.id,
             success_url="https://tomdocs.com/billing/success",
             cancel_url="https://tomdocs.com/pricing",
         )
