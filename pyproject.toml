@@ -1,10 +1,18 @@
 [project]
 name = "doc-ingest-api"
-version = "0.0.0"
-description = "Document ingestion API workspace for M0 engine evaluation and benchmark scaffolding."
+version = "0.1.0"
+description = "Document ingestion API gateway and parsing service."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "celery[redis]>=5.6.3",
+    "fastapi>=0.143.0",
+    "httpx>=0.28.1",
+    "pydantic-settings>=2.15.0",
+    "python-multipart>=0.0.32",
+    "sqlalchemy>=2.1.4",
+    "uvicorn[standard]>=0.54.0",
+]
 
 [dependency-groups]
 dev = [
@@ -39,6 +47,6 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 
 [[tool.mypy.overrides]]
-module = ["anydoc.*", "markitdown.*", "docling.*"]
+module = ["anydoc.*", "markitdown.*", "docling.*", "celery.*"]
 ignore_missing_imports = true
 follow_imports = "skip"

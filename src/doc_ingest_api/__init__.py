@@ -1,6 +1,10 @@
-"""Document ingestion API evaluation workspace.
+"""Document ingestion API product package."""
 
-M0 intentionally contains no business API implementation.
-"""
+from __future__ import annotations
 
-__version__ = "0.0.0"
+from .app import create_app
+from .config import Settings
+
+__version__ = "0.1.0"
+
+__all__ = ["Settings", "create_app"]
