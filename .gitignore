@@ -45,3 +45,7 @@ Thumbs.db
 benchmarks/dataset/inputs/
 benchmarks/dataset/ground_truth/
 benchmarks/dataset/sources.csv
+
+# Engine benchmark outputs and isolated engine venvs
+benchmarks/outputs/
+.venvs/
