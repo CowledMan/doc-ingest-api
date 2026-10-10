@@ -199,6 +199,22 @@ def create_app(
         """Apply IP/key-based rate limiting based on authentication state."""
         state = _app_state(request)
         x_api_key = request.headers.get("X-API-Key")
+        # Public informational endpoints are exempt: they must never block
+        # first-time visitors, uptime probes, or the docs site.
+        if (
+            x_api_key is None
+            and request.method == "GET"
+            and request.url.path
+            in {
+                "/",
+                "/healthz",
+                "/openapi.json",
+                "/docs",
+                "/redoc",
+                "/samples/demo.pdf",
+            }
+        ):
+            return await call_next(request)
         if x_api_key:
             key_id = f"key:{hash_api_key(x_api_key)[:16]}"
             result = state.rate_limiter.check(

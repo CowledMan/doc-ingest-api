@@ -72,11 +72,15 @@ class TestRateLimiting:
 
     def test_ip_rate_limit_returns_429_with_retry_after(self) -> None:
         client, _ = _app_with_rate_limits(MockParser("markitdown"), ip_limit=2)
-        # First two requests to /healthz succeed (no auth → IP limit).
+        # /healthz is exempt, so it must never count toward the IP limit.
         assert client.get("/healthz").status_code == 200
         assert client.get("/healthz").status_code == 200
-        # Third is rate limited.
-        response = client.get("/healthz")
+        assert client.get("/healthz").status_code == 200
+        # Unauthenticated API hits (401 responses) do count toward the IP limit.
+        assert client.get("/v1/billing/subscription").status_code == 401
+        assert client.get("/v1/billing/subscription").status_code == 401
+        # Third API hit is rate limited.
+        response = client.get("/v1/billing/subscription")
         assert response.status_code == 429
         assert "Retry-After" in response.headers
 
@@ -93,9 +97,9 @@ class TestRateLimiting:
         client, api_key = _app_with_rate_limits(
             MockParser("markitdown"), ip_limit=1, key_limit=10
         )
-        # First unauthenticated request exhausts IP limit.
-        assert client.get("/healthz").status_code == 200
-        assert client.get("/healthz").status_code == 429
+        # First unauthenticated API request exhausts IP limit.
+        assert client.get("/v1/billing/subscription").status_code == 401
+        assert client.get("/v1/billing/subscription").status_code == 429
         # Authenticated requests use the key limit, not IP.
         headers = {"X-API-Key": api_key}
         assert client.get("/healthz", headers=headers).status_code == 200
