@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Local configuration
+.env
+.env.*
+!.env.example
+
+# Evaluation outputs and caches
+benchmarks/results/
+benchmarks/dataset/00_manifest.jsonl
+model_cache/
+huggingface/
+
+# Third-party evaluation checkouts are kept locally, not committed.
+vendor/*
+!vendor/README.md
+!vendor/LICENSES.md
+
+# OS/editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Internal strategy documents stay local and out of the future public core repo.
+方向一_文档摄取API技术方案.md
+方向一_文档摄取API技术方案.docx
+方向一_文档摄取API方案.pptx
