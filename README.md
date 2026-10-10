@@ -40,6 +40,14 @@ uv run python -m benchmarks.scaffold_dataset --output benchmarks/dataset
 
 真实文档与人工校对 ground truth 需要单独准备。manifest 格式为 JSONL，字段见 `benchmarks/dataset/README.md`。
 
+真实文档按命名规范放入 `inputs/<category>/` 后，用导入脚本注册进 manifest：
+
+```powershell
+uv run python -m benchmarks.import_documents --manifest benchmarks/dataset/00_manifest.jsonl --dry-run
+```
+
+收集来源、命名规范与脱敏要求见 `benchmarks/dataset/README.md`。
+
 执行三引擎评测：
 
 ```powershell
