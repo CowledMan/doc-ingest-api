@@ -16,6 +16,7 @@
 - Python 3.12，依赖用 uv 管理，`pyproject.toml` 是唯一依赖入口。
 - 服务层：FastAPI；异步任务：Celery/Redis；存储：Postgres。
 - 引擎接入对象：anydoc、markitdown、docling；三者均为 MIT。
+- MCP Server 使用官方 `mcp` Python SDK（MIT）。
 - 扫描件/复杂版面：按类别路由到云 OCR；云 OCR 只通过环境变量配置密钥。
 
 ## 3. 代码规范
@@ -30,7 +31,7 @@
   - `uv sync`
   - `uv run pytest`
   - `uv run ruff check .`
-  - `uv run mypy src benchmarks scripts`
+  - `uv run mypy src benchmarks scripts sdk`
   - `uv run uvicorn doc_ingest_api.asgi:app`
 
 ## 4. 协议红线

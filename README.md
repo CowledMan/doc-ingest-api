@@ -20,7 +20,7 @@
 uv sync
 uv run pytest
 uv run ruff check .
-uv run mypy src benchmarks scripts
+uv run mypy src benchmarks scripts sdk
 ```
 
 创建 API Key：
@@ -35,6 +35,71 @@ uv run python scripts/manage_keys.py list
 ```powershell
 uv run uvicorn doc_ingest_api.asgi:app
 ```
+
+
+## Python SDK
+
+SDK 放在 `sdk/python/`，与网关代码分离；根项目通过 uv workspace 引用它。
+
+```powershell
+from doc_ingest_sdk import DocIngestClient
+
+client = DocIngestClient(
+    base_url="http://localhost:8000",
+    api_key="dip_...",
+)
+result = client.parse("sample.pdf", category="financial_reports")
+job = client.parse_async("sample.pdf", webhook_url="https://example.test/hook")
+finished = client.wait_for_job(job.job_id, timeout_seconds=120)
+```
+
+本地构建：
+
+```powershell
+uv build --package doc-ingest-sdk
+```
+
+## MCP Server
+
+MCP Server 是网关的客户端，通过环境变量指向网关：
+
+```env
+DOC_INGEST_BASE_URL=http://localhost:8000
+DOC_INGEST_API_KEY=dip_...
+```
+
+启动 stdio MCP Server：
+
+```powershell
+uv run doc-ingest-mcp
+```
+
+Claude Code / Codex 的 MCP 配置示例：
+
+```json
+{
+  "mcpServers": {
+    "doc-ingest": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        "/absolute/path/to/01_文档摄取API",
+        "doc-ingest-mcp"
+      ],
+      "env": {
+        "DOC_INGEST_BASE_URL": "http://localhost:8000",
+        "DOC_INGEST_API_KEY": "dip_..."
+      }
+    }
+  }
+}
+```
+
+可用工具：
+
+- `parse_document(file_path)`：返回 Markdown
+- `check_job(job_id)`：返回 job 状态与结果
 
 异步队列默认使用 `QUEUE_BACKEND=background`，CI 不依赖 Redis。生产可切换：
 

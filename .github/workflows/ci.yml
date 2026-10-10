@@ -20,4 +20,4 @@ jobs:
       - name: Run Ruff
         run: uv run ruff check .
       - name: Run mypy
-        run: uv run mypy src benchmarks scripts
+        run: uv run mypy src benchmarks scripts sdk
