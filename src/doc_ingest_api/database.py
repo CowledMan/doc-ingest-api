@@ -24,8 +24,21 @@ class Database:
         Base.metadata.create_all(self.engine)
 
 
+def _resolve_driver(database_url: str) -> str:
+    """Default bare ``postgresql://`` URLs to the installed psycopg3 driver.
+
+    Operators pass standard ``postgresql://`` connection strings (e.g. from
+    Neon or Render), but SQLAlchemy needs an explicit dialect+driver, so
+    rewrite to ``postgresql+psycopg://`` unless one is already specified.
+    """
+    if database_url.startswith("postgresql://"):
+        return database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+    return database_url
+
+
 def create_database(database_url: str) -> Database:
     """Create a database engine and session factory for the given URL."""
+    database_url = _resolve_driver(database_url)
     connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
     poolclass = StaticPool if database_url in {"sqlite://", "sqlite:///:memory:"} else None
     engine = create_engine(database_url, connect_args=connect_args, poolclass=poolclass)

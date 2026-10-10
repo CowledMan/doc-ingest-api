@@ -17,6 +17,7 @@ dependencies = [
     "uvicorn[standard]>=0.54.0",
     "mcp>=2.3.0",  # official Model Context Protocol SDK; MIT
     "doc-ingest-sdk",
+    "psycopg[binary]>=3.3.6",
 ]
 
 [dependency-groups]

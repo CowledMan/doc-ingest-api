@@ -65,3 +65,19 @@ def test_postgres_plan_and_expiry_columns(pg_database: Any) -> None:
         key = session.query(ApiKey).filter_by(name="pg-demo").one()
         assert key.plan == "demo"
         assert key.expires_at is not None
+
+
+def test_resolve_driver_rewrites_bare_postgres_url() -> None:
+    from doc_ingest_api.database import _resolve_driver
+
+    url = "postgresql://user:pass@host/db?sslmode=require"
+    assert _resolve_driver(url) == "postgresql+psycopg://user:pass@host/db?sslmode=require"
+
+
+def test_resolve_driver_keeps_explicit_dialect() -> None:
+    from doc_ingest_api.database import _resolve_driver
+
+    assert _resolve_driver("postgresql+psycopg://user:pass@host/db") == (
+        "postgresql+psycopg://user:pass@host/db"
+    )
+    assert _resolve_driver("sqlite:///./app.db") == "sqlite:///./app.db"
