@@ -26,6 +26,9 @@ vendor/*
 !vendor/README.md
 !vendor/LICENSES.md
 
+# Build artifacts
+dist/
+
 # OS/editor
 .DS_Store
 Thumbs.db
