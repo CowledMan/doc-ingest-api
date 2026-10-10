@@ -84,6 +84,18 @@ class TestRateLimiting:
         assert response.status_code == 429
         assert "Retry-After" in response.headers
 
+    def test_webhook_and_success_page_exempt_from_ip_limit(self) -> None:
+        client, _ = _app_with_rate_limits(MockParser("markitdown"), ip_limit=1)
+        # Exhaust the IP budget.
+        assert client.get("/v1/billing/subscription").status_code == 401
+        assert client.get("/v1/billing/subscription").status_code == 429
+        # Success page and webhook stay reachable; webhook is signature-guarded.
+        assert client.get("/billing/success").status_code == 200
+        response = client.post(
+            "/v1/billing/webhook", content=b"{}", headers={"paddle-signature": "h=0"}
+        )
+        assert response.status_code in (400, 401)  # rejected, never rate limited
+
     def test_key_rate_limit_returns_429(self) -> None:
         client, api_key = _app_with_rate_limits(MockParser("markitdown"), key_limit=2)
         headers = {"X-API-Key": api_key}

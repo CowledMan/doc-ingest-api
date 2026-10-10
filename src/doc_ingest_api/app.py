@@ -216,8 +216,14 @@ def create_app(
                 "/docs",
                 "/redoc",
                 "/samples/demo.pdf",
+                "/billing/success",
             }
         ):
+            return await call_next(request)
+        # Webhook receiver is authenticated by HMAC signature verification, so
+        # it must never be blocked by IP rate limiting (Paddle retries depend
+        # on fast 200 responses and fires many events per checkout).
+        if request.method == "POST" and request.url.path == "/v1/billing/webhook":
             return await call_next(request)
         if x_api_key:
             key_id = f"key:{hash_api_key(x_api_key)[:16]}"
