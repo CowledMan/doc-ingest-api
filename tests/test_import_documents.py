@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -141,3 +142,55 @@ def test_import_documents_dry_run_keeps_manifest(tmp_path: Path) -> None:
 
     assert manifest.read_text(encoding="utf-8") == before
     assert report.registered == ("contracts/contracts_001",)
+
+
+def test_import_documents_updates_sha256_and_reports_unknown_source(tmp_path: Path) -> None:
+    manifest = tmp_path / "00_manifest.jsonl"
+    _write_manifest(manifest, [_placeholder("contracts_001", "contracts")])
+    inputs = tmp_path / "inputs" / "contracts"
+    inputs.mkdir(parents=True)
+    content = b"public sample"
+    (inputs / "contracts_001.pdf").write_bytes(content)
+
+    report = import_documents(manifest)
+    rows = _read_manifest(manifest)
+
+    assert rows[0]["sha256"] == hashlib.sha256(content).hexdigest()
+    assert rows[0]["source_url"] == "unknown"
+    assert rows[0]["downloaded_at"]
+    assert report.unknown_source == ("contracts/contracts_001",)
+
+
+def test_import_documents_keeps_existing_provenance(tmp_path: Path) -> None:
+    manifest = tmp_path / "00_manifest.jsonl"
+    row = _placeholder("contracts_001", "contracts")
+    row["title"] = "公开样本"
+    row["source_url"] = "https://example.com/document.pdf"
+    row["sha256"] = "stale"
+    row["downloaded_at"] = "2026-01-01"
+    _write_manifest(manifest, [row])
+    inputs = tmp_path / "inputs" / "contracts"
+    inputs.mkdir(parents=True)
+    content = b"replacement"
+    (inputs / "contracts_001.pdf").write_bytes(content)
+
+    report = import_documents(manifest, downloaded_at="2026-02-02")
+    rows = _read_manifest(manifest)
+
+    assert rows[0]["sha256"] == hashlib.sha256(content).hexdigest()
+    assert rows[0]["title"] == "公开样本"
+    assert rows[0]["source_url"] == "https://example.com/document.pdf"
+    assert rows[0]["downloaded_at"] == "2026-01-01"
+    assert report.unknown_source == ()
+
+
+def test_import_documents_rejects_invalid_downloaded_date(tmp_path: Path) -> None:
+    manifest = tmp_path / "00_manifest.jsonl"
+    _write_manifest(manifest, [_placeholder("contracts_001", "contracts")])
+    inputs = tmp_path / "inputs" / "contracts"
+    inputs.mkdir(parents=True)
+    (inputs / "contracts_001.pdf").write_bytes(b"fake")
+
+    with pytest.raises(ValueError, match="Invalid isoformat"):
+        import_documents(manifest, downloaded_at="not-a-date")
+

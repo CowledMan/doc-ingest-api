@@ -8,14 +8,17 @@ benchmark-ready without hand-editing JSONL.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from dataclasses import asdict, dataclass
+from datetime import date
 from pathlib import Path
 
 from .scaffold_dataset import CATEGORIES, CategorySpec
 
 STATUS_READY = "ready"
 STATUS_PENDING = "pending_source_document"
+UNKNOWN_SOURCE = "unknown"
 
 _SPEC_BY_KEY: dict[str, CategorySpec] = {spec.key: spec for spec in CATEGORIES}
 
@@ -27,6 +30,7 @@ class ImportReport:
     registered: tuple[str, ...]
     pending: tuple[str, ...]
     missing_ground_truth: tuple[str, ...]
+    unknown_source: tuple[str, ...]
 
 
 def _load_rows(manifest_path: Path) -> list[dict[str, object]]:
@@ -73,7 +77,16 @@ def _iter_input_files(manifest_dir: Path) -> list[Path]:
     return files
 
 
-def _new_row(category: str, stem: str, input_relative: str) -> dict[str, object]:
+def _sha256(path: Path) -> str:
+    """Return the SHA256 digest for a file without loading it entirely."""
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _new_row(category: str, stem: str, input_relative: str, downloaded_at: str) -> dict[str, object]:
     """Build a manifest row for a document that had no placeholder row."""
     spec = _SPEC_BY_KEY[category]
     return {
@@ -85,7 +98,27 @@ def _new_row(category: str, stem: str, input_relative: str) -> dict[str, object]
         "features": list(spec.features),
         "language": "zh-Hans",
         "status": STATUS_READY,
+        "title": stem,
+        "source_url": UNKNOWN_SOURCE,
+        "sha256": "",
+        "downloaded_at": downloaded_at,
     }
+
+
+def _fill_file_metadata(
+    row: dict[str, object], path: Path, input_relative: str, stem: str, downloaded_at: str
+) -> bool:
+    """Update file-derived metadata in place; return True when source is unknown."""
+    row["input"] = input_relative
+    row["status"] = STATUS_READY
+    row["sha256"] = _sha256(path)
+    if not row.get("title"):
+        row["title"] = stem
+    if not row.get("source_url"):
+        row["source_url"] = UNKNOWN_SOURCE
+    if not row.get("downloaded_at"):
+        row["downloaded_at"] = downloaded_at
+    return str(row.get("source_url", "")) == UNKNOWN_SOURCE
 
 
 def _write_manifest(manifest_path: Path, rows: list[dict[str, object]]) -> None:
@@ -97,16 +130,27 @@ def _write_manifest(manifest_path: Path, rows: list[dict[str, object]]) -> None:
 
 
 def import_documents(
-    manifest_path: Path, *, allow_new: bool = False, dry_run: bool = False
+    manifest_path: Path,
+    *,
+    allow_new: bool = False,
+    dry_run: bool = False,
+    downloaded_at: str | None = None,
 ) -> ImportReport:
     """Match files under inputs/ to manifest rows and mark them ready.
 
-    Rows matched by (category, filename stem) get status "ready" and their
-    "input" path updated to the actual file. Unmatched files raise ValueError
-    unless --allow-new registers them as new rows in a known category.
+    Rows matched by (category, filename stem) get their input path and SHA256
+    refreshed. Unmatched files raise ValueError unless ``allow_new`` registers
+    them as new rows in a known category. New rows start with
+    ``source_url="unknown"`` so their provenance is easy to audit and backfill.
     """
     if not manifest_path.is_file():
         raise FileNotFoundError(f"manifest not found: {manifest_path}")
+    if downloaded_at:
+        date.fromisoformat(downloaded_at)
+        import_date = downloaded_at
+    else:
+        import_date = date.today().isoformat()
+
     manifest_dir = manifest_path.parent
     rows = _load_rows(manifest_path)
     row_by_key: dict[tuple[str, str], dict[str, object]] = {}
@@ -118,6 +162,7 @@ def import_documents(
 
     registered: list[str] = []
     unmatched: list[str] = []
+    unknown_source: set[str] = set()
     seen_stems: set[tuple[str, str]] = set()
     for path in _iter_input_files(manifest_dir):
         category = path.parent.name
@@ -128,16 +173,20 @@ def import_documents(
         matched = row_by_key.get((category, stem))
         if matched is None and allow_new and category in _SPEC_BY_KEY:
             input_relative = path.relative_to(manifest_dir).as_posix()
-            new_row = _new_row(category, stem, input_relative)
+            new_row = _new_row(category, stem, input_relative, import_date)
+            _fill_file_metadata(new_row, path, input_relative, stem, import_date)
             rows.append(new_row)
             row_by_key[(category, stem)] = new_row
             registered.append(f"{category}/{stem}")
+            if str(new_row["source_url"]) == UNKNOWN_SOURCE:
+                unknown_source.add(f"{category}/{stem}")
             continue
         if matched is None:
             unmatched.append(path.relative_to(manifest_dir).as_posix())
             continue
-        matched["input"] = path.relative_to(manifest_dir).as_posix()
-        matched["status"] = STATUS_READY
+        input_relative = path.relative_to(manifest_dir).as_posix()
+        if _fill_file_metadata(matched, path, input_relative, stem, import_date):
+            unknown_source.add(f"{category}/{stem}")
         registered.append(f"{category}/{stem}")
 
     if unmatched:
@@ -163,6 +212,7 @@ def import_documents(
         registered=tuple(sorted(registered)),
         pending=tuple(sorted(pending)),
         missing_ground_truth=tuple(sorted(missing_ground_truth)),
+        unknown_source=tuple(sorted(unknown_source)),
     )
     if not dry_run:
         _write_manifest(manifest_path, rows)
@@ -188,13 +238,23 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="report the planned changes without rewriting the manifest",
     )
+    parser.add_argument(
+        "--downloaded-at",
+        type=str,
+        help="ISO date (YYYY-MM-DD) to use for new rows; defaults to today",
+    )
     return parser
 
 
 def main() -> None:
     """CLI entry point."""
     args = build_parser().parse_args()
-    report = import_documents(args.manifest, allow_new=args.allow_new, dry_run=args.dry_run)
+    report = import_documents(
+        args.manifest,
+        allow_new=args.allow_new,
+        dry_run=args.dry_run,
+        downloaded_at=args.downloaded_at,
+    )
     print(json.dumps(asdict(report), ensure_ascii=False, indent=2))
 
 
