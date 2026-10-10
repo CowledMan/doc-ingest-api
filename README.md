@@ -38,15 +38,14 @@ uv run --with docling python scripts/verify_docling.py
 uv run python -m benchmarks.scaffold_dataset --output benchmarks/dataset
 ```
 
-真实文档与人工校对 ground truth 需要单独准备。manifest 格式为 JSONL，字段见 `benchmarks/dataset/README.md`。
-
-真实文档按命名规范放入 `inputs/<category>/` 后，用导入脚本注册进 manifest：
+基准集为 8 类 × 25 份真实公开文档（来源、许可与 manifest 字段见 `benchmarks/dataset/README.md`）。重新下载/补齐与校验：
 
 ```powershell
-uv run python -m benchmarks.import_documents --manifest benchmarks/dataset/00_manifest.jsonl --dry-run
+uv run python -m benchmarks.download_dataset --quota 25
+uv run python -m benchmarks.validate_manifest --manifest benchmarks/dataset/00_manifest.jsonl --min-count 20
 ```
 
-收集来源、命名规范与脱敏要求见 `benchmarks/dataset/README.md`。
+manifest（来源 URL、SHA256、下载日期）入库；真实文件与 ground truth 只留本地。人工校对 ground truth 待补齐后即可运行 `run_benchmark`。
 
 执行三引擎评测：
 
