@@ -26,12 +26,11 @@ primary_region = "sin"
   auto_start_machines = true
   min_machines_running = 1
 
-  [http_service.checks]
-    [http_service.checks.healthz]
-      method = "GET"
-      path = "/healthz"
-      interval = "30s"
-      timeout = "5s"
+  [[http_service.checks]]
+    method = "GET"
+    path = "/healthz"
+    interval = "30s"
+    timeout = "5s"
 
 [[vm]]
   size = "shared-cpu-1x"
