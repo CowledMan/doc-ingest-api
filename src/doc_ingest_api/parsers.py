@@ -68,6 +68,7 @@ class SubprocessParser:
                 check=False,
                 capture_output=True,
                 text=True,
+                encoding="utf-8",
                 timeout=self.timeout_seconds,
                 env=_subprocess_environment(),
             )
@@ -176,6 +177,7 @@ def create_parser_router(settings: Settings) -> ParserRouter:
 def _subprocess_environment() -> dict[str, str]:
     """Create a child environment that can import this package from source."""
     environment = os.environ.copy()
+    environment["PYTHONIOENCODING"] = "utf-8"
     source_root = Path(__file__).resolve().parents[2] / "src"
     if source_root.is_dir():
         current = environment.get("PYTHONPATH", "")

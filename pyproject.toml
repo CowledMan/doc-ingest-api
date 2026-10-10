@@ -6,6 +6,9 @@ readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "celery[redis]>=5.6.3",
+    "docling==2.137.0",
+    "firecrawl-anydoc==0.2.4",
+    "markitdown[pdf]==0.1.8",
     "fastapi>=0.143.0",
     "httpx>=0.28.1",
     "pydantic-settings>=2.15.0",
@@ -31,6 +34,9 @@ module-name = "doc_ingest_api"
 [tool.pytest.ini_options]
 addopts = "-ra --strict-markers"
 testpaths = ["tests"]
+markers = [
+  "integration: tests that use real parsing engines and benchmark samples",
+]
 
 [tool.ruff]
 line-length = 100

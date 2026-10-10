@@ -49,6 +49,10 @@ _CONVERTERS: dict[str, Callable[[Path], str]] = {
 
 def main(argv: list[str]) -> int:
     """Convert one document and emit a JSON result on stdout."""
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+    if hasattr(sys.stderr, "reconfigure"):
+        sys.stderr.reconfigure(encoding="utf-8")
     if len(argv) != 3:
         print("usage: engine_worker <engine> <file>", file=sys.stderr)
         return 2
