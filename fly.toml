@@ -8,7 +8,7 @@ primary_region = "sin"
   dockerfile = "Dockerfile"
 
 [env]
-  DATABASE_URL = "sqlite:////data/doc_ingest.db"
+  DATABASE_URL = "sqlite:////app/data/doc_ingest.db"
   REDIS_URL = "redis://localhost:6379/0"
   QUEUE_BACKEND = "background"
   STRIPE_API_KEY = ""
@@ -39,4 +39,5 @@ primary_region = "sin"
 
 [mounts]
   source = "doc_ingest_data"
-  destination = "/data"
+  destination = "/app/data"
+
