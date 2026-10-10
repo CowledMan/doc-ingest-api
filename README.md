@@ -30,6 +30,12 @@ uv run python scripts/manage_keys.py create --name local --monthly-page-quota 50
 uv run python scripts/manage_keys.py list
 ```
 
+启动网关：
+
+```powershell
+uv run uvicorn doc_ingest_api.asgi:app
+```
+
 异步队列默认使用 `QUEUE_BACKEND=background`，CI 不依赖 Redis。生产可切换：
 
 ```env

@@ -31,6 +31,7 @@
   - `uv run pytest`
   - `uv run ruff check .`
   - `uv run mypy src benchmarks scripts`
+  - `uv run uvicorn doc_ingest_api.asgi:app`
 
 ## 4. 协议红线
 
