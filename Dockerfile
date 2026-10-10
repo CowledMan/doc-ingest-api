@@ -8,6 +8,7 @@ WORKDIR /app
 
 # Install dependencies first for layer caching
 COPY pyproject.toml uv.lock README.md ./
+COPY sdk/python sdk/python/
 RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy source and install the project itself
