@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     parser_docling_python: Path | None = None
 
     # Rate limiting (M2 batch 1). Redis-backed limiter is a planned M3 item.
-    rate_limit_ip_per_hour: int = 10
+    rate_limit_ip_per_hour: int = 50
     rate_limit_key_per_minute: int = 60
 
     # Pricing plans rendered on the landing page; JSON list of plan objects.
