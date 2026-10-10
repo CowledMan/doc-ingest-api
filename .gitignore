@@ -41,3 +41,8 @@ Thumbs.db
 方向一_文档摄取API方案.pptx
 方向一_文档摄取API技术方案.docx
 方向一_文档摄取API技术方案.md
+
+# Local benchmark source documents and ground truth (never commit real samples)
+benchmarks/dataset/inputs/
+benchmarks/dataset/ground_truth/
+benchmarks/dataset/sources.csv
