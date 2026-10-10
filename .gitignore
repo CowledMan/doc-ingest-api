@@ -54,3 +54,4 @@ benchmarks/dataset/sources.csv
 benchmarks/outputs/
 .venvs/
 mcp_server_stderr.log
+site/

@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     aliyun_ocr_key: str = ""
     aliyun_ocr_endpoint: str = ""
     stripe_api_key: str = ""
+    stripe_webhook_secret: str = ""
 
     parser_anydoc_python: Path | None = None
     parser_markitdown_python: Path | None = None

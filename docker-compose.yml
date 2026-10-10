@@ -1,0 +1,39 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:////app/data/doc_ingest.db
+      - REDIS_URL=redis://redis:6379/0
+      - QUEUE_BACKEND=background
+      - DOC_INGEST_API_KEY=${DOC_INGEST_API_KEY:-}
+      - STRIPE_API_KEY=${STRIPE_API_KEY:-}
+      - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET:-}
+      - ALIYUN_OCR_KEY=${ALIYUN_OCR_KEY:-}
+      - PARSER_TIMEOUT_SECONDS=${PARSER_TIMEOUT_SECONDS:-120}
+      - MONTHLY_PAGE_QUOTA=${MONTHLY_PAGE_QUOTA:-500}
+    volumes:
+      - api_data:/app/data
+      - api_uploads:/app/uploads
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+volumes:
+  api_data:
+  api_uploads:
+  redis_data:

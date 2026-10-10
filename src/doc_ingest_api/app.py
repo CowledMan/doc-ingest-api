@@ -23,6 +23,7 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session, sessionmaker
 
+from .billing import create_billing_provider
 from .config import Settings
 from .models import ApiKey, ParseJob
 from .parsers import (
@@ -45,6 +46,7 @@ class _AppState:
     settings: Settings
     session_factory: sessionmaker[Session]
     parser_router: ParserRouter
+    billing_provider: Any
 
 
 def _app_state(request: Request) -> _AppState:
@@ -157,12 +159,17 @@ def create_app(
         session_factory = database.session_factory
     if parser_router is None:
         parser_router = create_parser_router(settings)
+    billing_provider = create_billing_provider(
+        stripe_secret_key=settings.stripe_api_key,
+        stripe_webhook_secret=settings.stripe_webhook_secret,
+    )
 
     app = FastAPI(title="Document Ingest API", version="0.1.0")
     app.state.doc_ingest = _AppState(
         settings=settings,
         session_factory=session_factory,
         parser_router=parser_router,
+        billing_provider=billing_provider,
     )
     router = app.router
 
@@ -258,6 +265,67 @@ def create_app(
             "status": job.status,
             "result": result,
             "error": job.error,
+        }
+
+
+    @router.post("/v1/billing/checkout")
+    def create_checkout(
+        request: Request,
+        api_key: Annotated[ApiKey, Depends(_get_api_key)],
+    ) -> dict[str, Any]:
+        """Create a mock checkout session (real Stripe in M2)."""
+        state = _app_state(request)
+        session_result = state.billing_provider.create_checkout_session(
+            customer_id=f"cus_test_{api_key.id:08d}",
+            price_id="price_test_starter",
+            success_url="https://example.test/success",
+            cancel_url="https://example.test/cancel",
+        )
+        return {
+            "billing_provider": session_result.provider,
+            "checkout_session_id": session_result.id,
+            "checkout_url": session_result.url,
+            "customer_id": session_result.customer_id,
+            "price_id": session_result.price_id,
+        }
+
+    @router.post("/v1/billing/webhook")
+    def billing_webhook(
+        request: Request,
+    ) -> dict[str, Any]:
+        """Verify webhook signature header and acknowledge (mock mode)."""
+        state = _app_state(request)
+        signature = request.headers.get("stripe-signature", "")
+        if not signature:
+            raise _api_error(400, "missing_signature", "Stripe-Signature header is required")
+        body = b""
+        verification = state.billing_provider.verify_webhook_signature(
+            payload=body,
+            signature_header=signature,
+            secret=state.settings.stripe_webhook_secret,
+        )
+        return {
+            "billing_provider": verification.provider,
+            "verified": verification.verified,
+            "event_type": verification.event_type,
+        }
+
+    @router.get("/v1/billing/subscription")
+    def get_subscription(
+        request: Request,
+        api_key: Annotated[ApiKey, Depends(_get_api_key)],
+    ) -> dict[str, Any]:
+        """Return mock subscription status and plan details."""
+        state = _app_state(request)
+        subscription = state.billing_provider.get_subscription(
+            f"sub_test_{api_key.id:08d}"
+        )
+        return {
+            "billing_provider": subscription.provider,
+            "subscription_id": subscription.id,
+            "status": subscription.status,
+            "plan_name": subscription.plan_name,
+            "monthly_page_quota": subscription.monthly_page_quota,
         }
 
     return app

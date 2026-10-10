@@ -1,0 +1,29 @@
+site_name: Document Ingest API
+site_description: Multi-engine document parsing API with confidence-based routing
+site_url: https://doc-ingest-api.readthedocs.io/
+repo_url: https://github.com/user/doc-ingest-api
+
+nav:
+  - Home: index.md
+  - Quickstart: quickstart.md
+  - API Reference: api.md
+  - SDK: sdk.md
+  - MCP Server: mcp.md
+  - Deployment: deploy.md
+
+theme:
+  name: material
+  palette:
+    primary: indigo
+    accent: teal
+  features:
+    - content.code.copy
+    - navigation.expand
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed
+  - toc:
+      permalink: true
