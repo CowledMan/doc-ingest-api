@@ -349,14 +349,26 @@ def create_app(
     def create_checkout(
         request: Request,
         api_key: Annotated[ApiKey, Depends(_get_api_key)],
+        body: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Create a mock checkout session (real Stripe in M2)."""
+        """Create a checkout session for the configured billing provider."""
         state = _app_state(request)
+        plan = (body or {}).get("plan", "starter")
+        if plan not in {"starter", "pro"}:
+            raise _api_error(422, "invalid_plan", "plan must be starter or pro")
+        if state.billing_provider.provider_name == "paddle":
+            price_id = (
+                state.settings.paddle_price_starter
+                if plan == "starter"
+                else state.settings.paddle_price_pro
+            )
+        else:
+            price_id = f"price_test_{plan}"
         session_result = state.billing_provider.create_checkout_session(
             customer_id=f"cus_test_{api_key.id:08d}",
-            price_id="price_test_starter",
-            success_url="https://example.test/success",
-            cancel_url="https://example.test/cancel",
+            price_id=price_id,
+            success_url="https://tomdocs.com/billing/success",
+            cancel_url="https://tomdocs.com/pricing",
         )
         return {
             "billing_provider": session_result.provider,

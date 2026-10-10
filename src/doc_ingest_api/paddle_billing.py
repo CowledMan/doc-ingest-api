@@ -57,6 +57,11 @@ class PaddleBillingProvider:
         self.base_url = (
             PADDLE_SANDBOX_URL if paddle_env == "sandbox" else PADDLE_LIVE_URL
         )
+        if not api_key:
+            raise ValueError(
+                "Paddle billing is enabled but no API key is configured. "
+                "Set PADDLE_API_KEY (or PADDLE_SANDBOX_API_KEY for local sandbox use)."
+            )
         self._api_key = api_key
         self._webhook_secret = webhook_secret
         self._client_token = client_token

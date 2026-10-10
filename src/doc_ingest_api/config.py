@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,6 +31,16 @@ class Settings(BaseSettings):
     # Paddle billing (M2 batch 3). Empty paddle_env = mock (existing behaviour).
     paddle_env: str = ""
     paddle_api_key: str = ""
+
+    @field_validator("paddle_api_key", mode="before")
+    @classmethod
+    def _fallback_sandbox_api_key(cls, value: str) -> str:
+        """Fall back to PADDLE_SANDBOX_API_KEY when PADDLE_API_KEY is unset."""
+        if value:
+            return value
+        import os
+
+        return os.environ.get("PADDLE_SANDBOX_API_KEY", "")
     paddle_webhook_secret: str = ""
     paddle_client_token: str = ""
     paddle_price_starter: str = "pri_01m4knr3h18h4vvw1bsc02q2rd"
