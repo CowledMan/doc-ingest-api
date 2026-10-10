@@ -249,9 +249,18 @@ class TestPaddleLandingPage:
         assert response.status_code == 200
         assert "cdn.paddle.com/paddle" in response.text
         assert "openCheckout" in response.text
+        assert "transactionId" in response.text
+        assert "/v1/billing/checkout" in response.text
         assert "Paddle.Checkout.open" in response.text
         assert "Get Starter" in response.text
         assert "Get Pro" in response.text
+
+    def test_billing_success_page(self) -> None:
+        """The post-checkout success page renders."""
+        client = _paddle_app()
+        response = client.get("/billing/success")
+        assert response.status_code == 200
+        assert "Payment received" in response.text
 
     def test_landing_mock_mode_still_renders(self) -> None:
         client, _ = _app_with_rate_limits(MockParser("markitdown"))

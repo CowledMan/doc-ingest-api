@@ -369,7 +369,7 @@ def create_app(
             price_id=price_id,
             api_key_id=api_key.id,
             success_url="https://tomdocs.com/billing/success",
-            cancel_url="https://tomdocs.com/pricing",
+            cancel_url="https://tomdocs.com/",
         )
         return {
             "billing_provider": session_result.provider,
@@ -544,7 +544,7 @@ a{{color:#457b9d}}
 <tr><th>Plan</th><th>Quota</th><th>Price</th></tr>
 {pricing}
 </table>
-<p class="note">Prices are a preview; real billing integration is planned.</p>
+<p class="note">Subscriptions are billed securely by Paddle. Enter your API key below, then pick a plan.</p>
 
 <h2>Links</h2>
 <ul>
@@ -570,18 +570,30 @@ async function loadBillingConfig() {{
     }}
   }} catch(e) {{ console.warn("billing config unavailable"); }}
 }}
-function openCheckout(plan) {{
+async function openCheckout(plan) {{
   if (!window._paddleCfg) {{ alert("Billing not configured"); return; }}
-  const priceId = window._paddleCfg.price_ids[plan];
   const apiKeyInput = document.getElementById("api-key-input");
-  let customData = {{}};
-  if (apiKeyInput && apiKeyInput.value.trim()) {{
-    customData = {{ api_key_name: apiKeyInput.value.trim() }};
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
+  if (!apiKey.startsWith("dip_")) {{
+    alert("Enter your API key (dip_...) first");
+    return;
   }}
-  Paddle.Checkout.open({{
-    items: [{{ priceId: priceId, quantity: 1 }}],
-    custom: customData,
-  }});
+  try {{
+    const res = await fetch("/v1/billing/checkout", {{
+      method: "POST",
+      headers: {{ "X-API-Key": apiKey, "Content-Type": "application/json" }},
+      body: JSON.stringify({{ plan: plan }}),
+    }});
+    if (!res.ok) {{
+      const err = await res.json().catch(() => ({{}}));
+      alert("Checkout failed: " + ((err.detail && err.detail.message) || res.status));
+      return;
+    }}
+    const data = await res.json();
+    Paddle.Checkout.open({{ transactionId: data.checkout_session_id }});
+  }} catch (e) {{
+    alert("Checkout failed: network error");
+  }}
 }}
 loadBillingConfig();
 </script>
@@ -596,6 +608,29 @@ loadBillingConfig();
   </div>
   <p class="note" style="margin-top:.5rem">After checkout, your API key plan is upgraded automatically via webhook.</p>
 </div>
+</body></html>""")
+
+    @router.get(
+        "/billing/success",
+        tags=["health"],
+        response_class=HTMLResponse,
+        include_in_schema=False,
+    )
+    def billing_success() -> HTMLResponse:
+        """Serve the post-checkout confirmation page."""
+        return HTMLResponse(content="""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>Payment received — Document Ingest API</title>
+<style>body{font-family:system-ui,sans-serif;margin:0;padding:3rem;background:#f8f9fa;color:#1a1a2e}
+h1{font-size:1.8rem}.note{color:#555}a{color:#457b9d}</style></head>
+<body>
+<h1>Payment received</h1>
+<p class="note">Your subscription is active. Your API key plan will be upgraded
+automatically within a minute.</p>
+<p class="note">Verify it any time:</p>
+<pre><code>curl https://tomdocs.com/v1/billing/subscription \
+  -H "X-API-Key: dip_..."</code></pre>
+<p><a href="/">Back to home</a> &middot; <a href="/docs">API reference</a></p>
 </body></html>""")
 
     # --- Demo sandbox ---
