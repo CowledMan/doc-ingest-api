@@ -17,7 +17,6 @@ htmlcov/
 
 # Evaluation outputs and caches
 benchmarks/results/
-benchmarks/dataset/00_manifest.jsonl
 model_cache/
 huggingface/
 
