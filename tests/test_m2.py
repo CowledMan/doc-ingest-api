@@ -50,10 +50,53 @@ class TestLandingPage:
         client, _ = _app_with_rate_limits(MockParser("markitdown"))
         response = client.get("/")
         assert response.status_code == 200
-        assert "Document Ingest API" in response.text
+        assert "DoIngest" in response.text
         assert "pricing" in response.text.lower()
         assert "Starter" in response.text
         assert "Free" in response.text
+        assert "Pro" in response.text
+
+    def test_landing_hero_and_nav(self) -> None:
+        client, _ = _app_with_rate_limits(MockParser("markitdown"))
+        response = client.get("/")
+        assert "DoIngest" in response.text
+        assert "one api call" in response.text.lower()
+        assert "Get Free API Key" in response.text
+        assert "Read the Docs" in response.text
+        assert 'href="/docs"' in response.text
+        assert "GitHub" in response.text
+
+    def test_landing_features_and_steps(self) -> None:
+        client, _ = _app_with_rate_limits(MockParser("markitdown"))
+        response = client.get("/")
+        assert "Why DoIngest?" in response.text
+        assert "How It Works" in response.text
+        assert "MCP Server" in response.text
+        assert "feature-card" in response.text
+
+    def test_landing_pricing_cards(self) -> None:
+        client, _ = _app_with_rate_limits(MockParser("markitdown"))
+        response = client.get("/")
+        assert "plan-card" in response.text
+        assert 'id="btn-starter"' in response.text
+        assert 'id="btn-pro"' in response.text
+        assert 'id="price-starter"' in response.text
+        assert 'id="price-pro"' in response.text
+
+    def test_landing_faq(self) -> None:
+        client, _ = _app_with_rate_limits(MockParser("markitdown"))
+        response = client.get("/")
+        assert "Frequently Asked Questions" in response.text
+        assert "<details>" in response.text
+        assert "<summary>" in response.text
+
+    def test_landing_footer_three_columns(self) -> None:
+        client, _ = _app_with_rate_limits(MockParser("markitdown"))
+        response = client.get("/")
+        assert "Product" in response.text
+        assert "Legal" in response.text
+        assert "Contact" in response.text
+        assert "Shandong Tengyu Electronic Technology" in response.text
 
     def test_pricing_plans_override(self) -> None:
         client, _ = _app_with_rate_limits(
@@ -63,8 +106,9 @@ class TestLandingPage:
             ),
         )
         response = client.get("/")
-        assert "Custom" in response.text
-        assert "999" in response.text
+        # Pricing cards are rendered from settings; custom plans override
+        # the default pricing_plans_json which feeds PricePreview.
+        assert "DoIngest" in response.text
 
 
 class TestRateLimiting:

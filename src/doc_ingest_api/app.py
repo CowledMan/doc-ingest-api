@@ -617,49 +617,293 @@ def create_app(
     @router.get("/", tags=["health"], response_class=HTMLResponse, include_in_schema=False)
     def landing() -> HTMLResponse:
         """Serve a self-contained landing page with pricing."""
-        pricing = _render_pricing_table()
-        return HTMLResponse(content=f"""<!DOCTYPE html>
+        return HTMLResponse(content="""<!DOCTYPE html>
 <html lang="en">
-<head><meta charset="utf-8"><title>Document Ingest API</title>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DoIngest — Turn Documents into Clean Markdown via One API Call</title>
+<meta name="description" content="Multi-engine document parsing API with confidence-based routing. PDF, DOCX, XLSX, PPTX to Markdown.">
 <style>
-body{{font-family:system-ui,sans-serif;margin:0;padding:2rem;background:#f8f9fa;color:#1a1a2e}}
-h1{{font-size:2.2rem;margin-bottom:.5rem}} h2{{margin-top:2rem}}
-.tagline{{font-size:1.2rem;color:#555;margin-bottom:2rem}}
-pre{{background:#1a1a2e;color:#a8dadc;padding:1rem;border-radius:8px;overflow-x:auto;font-size:.85rem}}
-code{{font-family:monospace}}
-table{{border-collapse:collapse;margin:1rem 0;width:100%}}
-th,td{{border:1px solid #ddd;padding:.6rem 1rem;text-align:left}}
-th{{background:#e9ecef}}
-.note{{font-size:.85rem;color:#888}}
-a{{color:#457b9d}}
-.badge{{display:inline-block;background:#457b9d;color:#fff;padding:.2rem .6rem;border-radius:4px;font-size:.8rem;margin-right:.5rem}}
+:root{{--primary:#457b9d;--primary-dark:#1d3557;--accent:#e63946;--bg:#f8f9fa;--bg-alt:#e9ecef;--text:#1a1a2e;--text-light:#555;--border:#dee2e6;--radius:8px;--shadow:0 2px 8px rgba(0,0,0,.08)}}
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--text);background:var(--bg);line-height:1.6}}
+a{{color:var(--primary);text-decoration:none}} a:hover{{text-decoration:underline}}
+.container{{max-width:1080px;margin:0 auto;padding:0 1.5rem}}
+/* Nav */
+nav{{background:var(--primary-dark);padding:.8rem 0}}
+nav .container{{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem}}
+nav .brand{{color:#fff;font-weight:700;font-size:1.1rem}}
+nav .links{{display:flex;gap:1.2rem;flex-wrap:wrap}}
+nav .links a{{color:#e9ecef;font-size:.9rem}}
+/* Hero */
+.hero{{background:linear-gradient(135deg,var(--primary-dark) 0%,var(--primary) 100%);color:#fff;padding:4rem 0 3rem;text-align:center}}
+.hero h1{{font-size:2.5rem;margin-bottom:.8rem;line-height:1.2}}
+.hero p{{font-size:1.15rem;color:#cbd5e1;margin-bottom:1.5rem;max-width:640px;margin-inline:auto}}
+.hero .ctas{{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}}
+.btn{{display:inline-block;padding:.7rem 1.8rem;border-radius:var(--radius);font-size:.95rem;font-weight:600;cursor:pointer;border:none;text-decoration:none!important}}
+.btn-primary{{background:#fff;color:var(--primary-dark)}}
+.btn-outline{{background:transparent;color:#fff;border:2px solid #fff}}
+.btn:hover{{opacity:.9}}
+/* Terminal */
+.terminal{{background:#1a1a2e;color:#a8dadc;border-radius:var(--radius);padding:1.2rem;margin:2rem auto 0;max-width:680px;text-align:left;box-shadow:var(--shadow);overflow-x:auto}}
+.terminal .dots{{display:flex;gap:6px;margin-bottom:.8rem}}
+.terminal .dots span{{width:10px;height:10px;border-radius:50%;display:inline-block}}
+.terminal .dots .r{{background:#ff5f56}}.terminal .dots .y{{background:#ffbd2e}}.terminal .dots .g{{background:#27c93f}}
+.terminal pre{{font-family:monospace;font-size:.85rem;white-space:pre}}
+.terminal .c-key{{color:#e63946}}.terminal .c-str{{color:#f1fa8c}}.terminal .c-flag{{color:#7c7cf8}}
+/* Sections */
+section{{padding:3.5rem 0}}
+section h2{{font-size:1.8rem;margin-bottom:2rem;text-align:center}}
+/* Features */
+.features-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem}}
+.feature-card{{background:#fff;border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow)}}
+.feature-card .icon{{width:40px;height:40px;margin-bottom:.8rem}}
+.feature-card h3{{font-size:1rem;margin-bottom:.4rem}}
+.feature-card p{{font-size:.88rem;color:var(--text-light)}}
+/* Steps */
+.steps{{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;text-align:center}}
+.step{{background:#fff;border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow)}}
+.step .num{{display:inline-block;width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;line-height:32px;font-weight:700;margin-bottom:.6rem}}
+.step h3{{font-size:.95rem}}.step p{{font-size:.85rem;color:var(--text-light)}}
+/* Pricing */
+.pricing-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;align-items:stretch}}
+.plan-card{{background:#fff;border-radius:var(--radius);padding:1.8rem;box-shadow:var(--shadow);display:flex;flex-direction:column;position:relative}}
+.plan-card.featured{{border:2px solid var(--primary);transform:scale(1.03)}}
+.plan-card .badge{{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:.2rem .8rem;border-radius:12px;font-size:.75rem;font-weight:700}}
+.plan-card h3{{font-size:1.1rem;margin-bottom:.5rem}}
+.plan-card .price{{font-size:2rem;font-weight:700;color:var(--primary-dark)}}
+.plan-card .quota{{font-size:.85rem;color:var(--text-light);margin-bottom:1rem}}
+.plan-card ul{{list-style:none;margin-bottom:1.2rem;flex:1}}
+.plan-card li{{font-size:.85rem;padding:.3rem 0;color:var(--text-light)}}
+.plan-card li::before{{content:"\\2713 ";color:var(--primary);font-weight:700}}
+.plan-card .btn-cta{{width:100%;text-align:center;margin-top:auto}}
+.btn-cta-primary{{background:var(--primary);color:#fff}}
+.btn-cta-secondary{{background:var(--bg-alt);color:var(--text)}}
+.btn-cta-free{{background:var(--bg-alt);color:var(--text-light);font-size:.85rem;padding:.5rem 1rem}}
+/* Key banner & inputs */
+.key-banner{{display:none;background:#fff3cd;border:1px solid #ffc107;padding:.8rem 1rem;border-radius:var(--radius);margin-bottom:1rem;font-size:.9rem}}
+.pricing-form{{margin-top:1.5rem}}
+.pricing-form .inputs{{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}}
+.pricing-form label{{display:block;font-size:.82rem;font-weight:600;margin-bottom:.2rem}}
+.pricing-form input{{padding:.5rem;border:1px solid var(--border);border-radius:6px;width:220px;font-size:.88rem}}
+.pricing-form .btn{{font-size:.88rem;padding:.6rem 1.4rem}}
+.note{{font-size:.82rem;color:var(--text-light);margin-top:.4rem}}
+.note a{{text-decoration:underline}}
+/* FAQ */
+.faq details{{background:#fff;border-radius:var(--radius);margin-bottom:.8rem;box-shadow:var(--shadow)}}
+.faq summary{{padding:1rem 1.2rem;font-weight:600;font-size:.95rem;cursor:pointer}}
+.faq summary:hover{{color:var(--primary)}}
+.faq p{{padding:0 1.2rem 1rem;font-size:.88rem;color:var(--text-light)}}
+/* Footer */
+footer{{background:var(--primary-dark);color:#cbd5e1;padding:2.5rem 0 1.5rem;margin-top:2rem}}
+footer .grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;margin-bottom:1.5rem}}
+footer h4{{color:#fff;font-size:.9rem;margin-bottom:.6rem}}
+footer a{{color:#cbd5e1;display:block;font-size:.85rem;padding:.15rem 0}}
+footer .copyright{{text-align:center;font-size:.78rem;color:#64748b;border-top:1px solid #2d4a6b;padding-top:1rem;margin-top:1rem}}
+/* Responsive */
+@media(max-width:768px){{
+  .hero h1{{font-size:1.8rem}}
+  .steps{{grid-template-columns:1fr}}
+  .pricing-grid{{grid-template-columns:1fr}}
+  .plan-card.featured{{transform:none}}
+  footer .grid{{grid-template-columns:1fr}}
+  nav .links{{justify-content:center}}
+}}
 </style></head>
 <body>
-<h1>Document Ingest API</h1>
-<p class="tagline">Turn PDFs, contracts, scans into clean Markdown via one API call.</p>
 
-<h2>Quickstart</h2>
-<pre><code>curl -X POST http://localhost:8000/v1/parse \\
-  -H "X-API-Key: dip_..." \\
-  -F "file=@report.pdf"</code></pre>
+<nav>
+  <div class="container">
+    <span class="brand">DoIngest</span>
+    <div class="links">
+      <a href="#pricing">Pricing</a>
+      <a href="/docs">Docs</a>
+      <a href="https://github.com/user/doc-ingest-api">GitHub</a>
+      <a href="mailto:support@tomdocs.com">Contact</a>
+    </div>
+  </div>
+</nav>
 
-<h2>Pricing <span class="badge">pricing preview</span></h2>
-<table>
-<tr><th>Plan</th><th>Quota</th><th>Price</th></tr>
-{pricing}
-</table>
-<p class="note">Subscriptions are billed securely by Paddle. Enter your API key below, then pick a plan.</p>
+<div class="hero">
+  <div class="container">
+    <h1>Turn documents into clean Markdown<br>&mdash; one API call</h1>
+    <p>Multi-engine parsing with confidence-based routing. PDF, DOCX, XLSX, PPTX &rarr; structured Markdown.</p>
+    <div class="ctas">
+      <a href="#pricing" class="btn btn-primary">Get Free API Key</a>
+      <a href="/docs" class="btn btn-outline">Read the Docs</a>
+    </div>
+    <div class="terminal">
+      <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+      <pre><span class="c-flag">curl</span> -X POST https://tomdocs.com/v1/parse \\
+  <span class="c-key">-H</span> <span class="c-str">"X-API-Key: dip_..."</span> \\
+  <span class="c-key">-F</span> <span class="c-str">"file=@report.pdf"</span></pre>
+    </div>
+  </div>
+</div>
 
-<h2>Links</h2>
-<ul>
-<li><a href="/docs">API Reference (Swagger)</a></li>
-<li><a href="https://github.com/user/doc-ingest-api">GitHub</a></li>
-<li><a href="/openapi.json">OpenAPI Spec</a></li>
-</ul>
+<section id="features">
+  <div class="container">
+    <h2>Why DoIngest?</h2>
+    <div class="features-grid">
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#457b9d" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        <h3>PDF &amp; Scanned Documents</h3>
+        <p>Native PDFs, scanned images, and complex layouts handled by the best-suited engine.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#457b9d" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+        <h3>Clean Markdown Output</h3>
+        <p>Tables, headings, and reading order preserved. Ready for LLM pipelines or CMS ingestion.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#457b9d" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <h3>Simple REST + X-API-Key</h3>
+        <p>One header. One POST. No complex OAuth flows or SDK lock-in.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#457b9d" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <h3>MCP Server Integration</h3>
+        <p>Works natively with Claude and other AI agents via the Model Context Protocol.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#457b9d" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <h3>Transparent Per-Page Billing</h3>
+        <p>Pay only for pages you parse. Quota tracked in real time, no hidden fees.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="#457b9d" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <h3>99.9% Availability Target</h3>
+        <p>Hosted on managed cloud infrastructure with automatic scaling and health checks.</p>
+      </div>
+    </div>
+  </div>
+</section>
 
-<h2>Try it free</h2>
-<pre><code>curl -X POST http://localhost:8000/v1/demo-keys</code></pre>
-<p class="note">No signup required. Demo keys get 20 pages/month.</p>
+<section id="how-it-works" style="background:#fff">
+  <div class="container">
+    <h2>How It Works</h2>
+    <div class="steps">
+      <div class="step"><span class="num">1</span><h3>Get a Key</h3><p>Sign up below with your email. Free tier included.</p></div>
+      <div class="step"><span class="num">2</span><h3>Upload a File</h3><p>Send your PDF, DOCX, or image via multipart POST.</p></div>
+      <div class="step"><span class="num">3</span><h3>Get Markdown</h3><p>Receive clean, structured Markdown in seconds.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="pricing">
+  <div class="container">
+    <h2>Pricing</h2>
+    <div class="pricing-grid">
+      <div class="plan-card">
+        <h3>Free</h3>
+        <div class="price">$0</div>
+        <div class="quota">5 pages/mo</div>
+        <ul>
+          <li>Basic parsing</li>
+          <li>All file formats</li>
+          <li>Community support</li>
+        </ul>
+        <a href="#try-free" class="btn btn-cta-free btn-cta">Start Free</a>
+      </div>
+      <div class="plan-card featured">
+        <span class="badge">Most Popular</span>
+        <h3>Starter</h3>
+        <div class="price"><span id="price-starter">$19</span>/mo</div>
+        <div class="quota">500 pages/mo</div>
+        <ul>
+          <li>All parsing features</li>
+          <li>Scanned document support</li>
+          <li>Email support</li>
+        </ul>
+        <button id="btn-starter" class="btn btn-cta-primary btn-cta" onclick="openCheckout('starter')">Get Starter &mdash; $19/mo</button>
+      </div>
+      <div class="plan-card">
+        <h3>Pro</h3>
+        <div class="price"><span id="price-pro">$99</span>/mo</div>
+        <div class="quota">5000 pages/mo</div>
+        <ul>
+          <li>Everything in Starter</li>
+          <li>Priority queue</li>
+          <li>Dedicated support</li>
+        </ul>
+        <button id="btn-pro" class="btn btn-cta-secondary btn-cta" onclick="openCheckout('pro')">Get Pro &mdash; $99/mo</button>
+      </div>
+    </div>
+
+    <div class="pricing-form" id="try-free">
+      <div id="key-banner" class="key-banner"></div>
+      <div class="inputs">
+        <div>
+          <label for="api-key-input">Your API key</label>
+          <input id="api-key-input" type="text" placeholder="dip_...">
+        </div>
+        <div>
+          <label for="email-input">Email (for key recovery)</label>
+          <input id="email-input" type="email" placeholder="you@example.com">
+        </div>
+      </div>
+      <p class="note">Lost your key? <a href="#" onclick="recoverKeys();return false;">Recover my Key</a> using your email.</p>
+      <p class="note">After checkout, your API key plan is upgraded automatically via webhook.</p>
+      <p class="note">No signup required. Free keys get 5 pages/month.</p>
+    </div>
+  </div>
+</section>
+
+<section id="faq" style="background:#fff">
+  <div class="container">
+    <h2>Frequently Asked Questions</h2>
+    <div class="faq">
+      <details>
+        <summary>Is my data safe?</summary>
+        <p>Documents are processed in memory and deleted after parsing. API keys are stored as irreversible hashes. We never sell or share your data. See our <a href="/privacy">Privacy Policy</a>.</p>
+      </details>
+      <details>
+        <summary>How are pages counted?</summary>
+        <p>Pages are counted from parser metadata (e.g. a 10-page PDF consumes 10 pages of your quota). Monthly quotas reset on the 1st of each UTC month.</p>
+      </details>
+      <details>
+        <summary>Can I cancel my subscription?</summary>
+        <p>Yes, anytime via the <a href="#" onclick="openPortal();return false;">customer portal</a> or by emailing support. Cancellation takes effect at the end of the current billing period.</p>
+      </details>
+      <details>
+        <summary>What file formats are supported?</summary>
+        <p>PDF, DOCX, XLSX, PPTX, and scanned images. The Service automatically routes to the best parsing engine for each format.</p>
+      </details>
+      <details>
+        <summary>How is this different from open-source parsers?</summary>
+        <p>DoIngest runs multiple engines with confidence-based routing, handles cloud OCR for scans, and provides managed infrastructure with SLA. No server maintenance or dependency management.</p>
+      </details>
+      <details>
+        <summary>How do I get support?</summary>
+        <p>Email <a href="mailto:support@tomdocs.com">support@tomdocs.com</a>. Starter and Pro users receive priority responses.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="grid">
+      <div>
+        <h4>Product</h4>
+        <a href="#pricing">Pricing</a>
+        <a href="/docs">Documentation</a>
+        <a href="#">Status</a>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <a href="/terms">Terms &amp; Conditions</a>
+        <a href="/refund">Refund Policy</a>
+        <a href="/privacy">Privacy Policy</a>
+      </div>
+      <div>
+        <h4>Contact</h4>
+        <a href="mailto:support@tomdocs.com">support@tomdocs.com</a>
+        <a href="https://github.com/user/doc-ingest-api">GitHub</a>
+      </div>
+    </div>
+    <div class="copyright">&copy; 2026 Shandong Tengyu Electronic Technology Co., Ltd. All rights reserved.</div>
+  </div>
+</footer>
 
 <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 <script>
@@ -671,7 +915,6 @@ async function loadBillingConfig() {{
       Paddle.Environment.set(cfg.environment);
       Paddle.Initialize({{ token: cfg.client_token }});
       window._paddleCfg = cfg;
-      // PricePreview for localized pricing (sandbox/live only)
       try {{
         Paddle.PricePreview({{
           items: [
@@ -684,30 +927,24 @@ async function loadBillingConfig() {{
               var planKey = i === 0 ? "starter" : "pro";
               var total = item.formattedTotals && item.formattedTotals.total;
               if (!total) return;
-              // Update pricing table price cell
               var priceCell = document.getElementById("price-" + planKey);
-              if (priceCell) priceCell.textContent = total + "/mo";
-              // Update button text
+              if (priceCell) priceCell.textContent = total;
               var btn = document.getElementById("btn-" + planKey);
               if (btn) {{
                 var planName = planKey.charAt(0).toUpperCase() + planKey.slice(1);
-                btn.textContent = "Get " + planName + " \u2014 " + total + "/mo";
+                btn.innerHTML = "Get " + planName + " &mdash; " + total + "/mo";
               }}
             }});
           }}
-        }}).catch(function() {{
-          // PricePreview failed; keep hardcoded fallback
-        }});
-      }} catch(pe) {{
-        // PricePreview unavailable; keep hardcoded fallback
-      }}
+        }}).catch(function() {{ /* keep fallback */ }});
+      }} catch(pe) {{ /* keep fallback */ }}
     }}
   }} catch(e) {{ console.warn("billing config unavailable"); }}
 }}
 function showKeyBanner(key, plan) {{
   const banner = document.getElementById("key-banner");
   if (banner) {{
-    banner.innerHTML = "<strong>\u26a0 Your API Key (copy it now, shown only once):</strong><br><code style=\"font-size:1rem;color:#e63946\">" + key + "</code><br><em>Plan: " + plan + "</em>";
+    banner.innerHTML = "<strong>\\u26a0 Your API Key (copy it now, shown only once):</strong><br><code style=\\"font-size:1rem;color:#e63946\\">" + key + "</code><br><em>Plan: " + plan + "</em>";
     banner.style.display = "block";
   }}
 }}
@@ -716,33 +953,21 @@ async function openCheckout(plan) {{
   const emailInput = document.getElementById("email-input");
   let apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
   const email = emailInput ? emailInput.value.trim() : "";
-
   if (!apiKey) {{
-    if (!email) {{
-      alert("Enter your API key or email address first");
-      return;
-    }}
-    // Create a new demo key with the email
+    if (!email) {{ alert("Enter your API key or email address first"); return; }}
     try {{
       const res = await fetch("/v1/demo-keys", {{
         method: "POST",
         headers: {{ "Content-Type": "application/json" }},
         body: JSON.stringify({{ email: email }}),
       }});
-      if (!res.ok) {{
-        alert("Failed to create key");
-        return;
-      }}
+      if (!res.ok) {{ alert("Failed to create key"); return; }}
       const data = await res.json();
       apiKey = data.api_key;
       if (apiKeyInput) apiKeyInput.value = apiKey;
       showKeyBanner(apiKey, data.plan);
-    }} catch (e) {{
-      alert("Failed to create key: network error");
-      return;
-    }}
+    }} catch (e) {{ alert("Failed to create key: network error"); return; }}
   }}
-
   if (!window._paddleCfg) {{ alert("Billing not configured"); return; }}
   try {{
     const res = await fetch("/v1/billing/checkout", {{
@@ -757,35 +982,22 @@ async function openCheckout(plan) {{
     }}
     const data = await res.json();
     const checkoutOpts = {{ transactionId: data.checkout_session_id }};
-    if (email) {{
-      checkoutOpts.customer = {{ email: email }};
-    }}
+    if (email) {{ checkoutOpts.customer = {{ email: email }}; }}
     Paddle.Checkout.open(checkoutOpts);
-  }} catch (e) {{
-    alert("Checkout failed: network error");
-  }}
+  }} catch (e) {{ alert("Checkout failed: network error"); }}
 }}
 async function recoverKeys() {{
   const emailInput = document.getElementById("email-input");
   const email = emailInput ? emailInput.value.trim() : "";
-  if (!email) {{
-    alert("Enter your email address first");
-    return;
-  }}
+  if (!email) {{ alert("Enter your email address first"); return; }}
   try {{
     const res = await fetch("/v1/keys/recover", {{
       method: "POST",
       headers: {{ "Content-Type": "application/json" }},
       body: JSON.stringify({{ email: email }}),
     }});
-    if (res.status === 404) {{
-      alert("No keys found for this email address");
-      return;
-    }}
-    if (!res.ok) {{
-      alert("Recovery failed: " + res.status);
-      return;
-    }}
+    if (res.status === 404) {{ alert("No keys found for this email address"); return; }}
+    if (!res.ok) {{ alert("Recovery failed: " + res.status); return; }}
     const data = await res.json();
     if (data.keys && data.keys.length > 0) {{
       const k = data.keys[0];
@@ -793,43 +1005,28 @@ async function recoverKeys() {{
       if (apiKeyInput) apiKeyInput.value = k.key;
       showKeyBanner(k.key, k.plan + " (" + k.monthly_page_quota + " pages/mo)");
     }}
-  }} catch (e) {{
-    alert("Recovery failed: network error");
-  }}
+  }} catch (e) {{ alert("Recovery failed: network error"); }}
+}}
+async function openPortal() {{
+  const apiKeyInput = document.getElementById("api-key-input");
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
+  if (!apiKey) {{ alert("Enter your API key first"); return; }}
+  try {{
+    const res = await fetch("/v1/billing/portal", {{
+      method: "POST",
+      headers: {{ "X-API-Key": apiKey }},
+    }});
+    if (!res.ok) {{
+      const err = await res.json().catch(() => ({{}}));
+      alert("Portal error: " + ((err.detail && err.detail.message) || res.status));
+      return;
+    }}
+    const data = await res.json();
+    window.open(data.portal_url, "_blank");
+  }} catch (e) {{ alert("Portal error: network error"); }}
 }}
 loadBillingConfig();
 </script>
-
-<div style="margin-top:1rem">
-  <div id="key-banner" style="display:none;background:#fff3cd;border:1px solid #ffc107;padding:.8rem;border-radius:6px;margin-bottom:.8rem;font-size:.9rem"></div>
-  <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end">
-    <div>
-      <label style="font-size:.85rem">Your API key:</label><br>
-      <input id="api-key-input" type="text" placeholder="dip_..."
-        style="padding:.4rem;border:1px solid #ccc;border-radius:4px;width:240px">
-    </div>
-    <div>
-      <label style="font-size:.85rem">Email (for key recovery):</label><br>
-      <input id="email-input" type="email" placeholder="you@example.com"
-        style="padding:.4rem;border:1px solid #ccc;border-radius:4px;width:220px">
-    </div>
-  </div>
-  <div style="margin-top:.8rem">
-    <button id="btn-starter" onclick="openCheckout('starter')" style="background:#457b9d;color:#fff;border:none;padding:.6rem 1.5rem;border-radius:6px;cursor:pointer;font-size:.9rem">Get Starter — $19/mo</button>
-    <button id="btn-pro" onclick="openCheckout('pro')" style="background:#1d3557;color:#fff;border:none;padding:.6rem 1.5rem;border-radius:6px;cursor:pointer;font-size:.9rem;margin-left:.5rem">Get Pro — $99/mo</button>
-  </div>
-  <p class="note" style="margin-top:.5rem">
-    Lost your key? <a href="#" onclick="recoverKeys();return false;" style="text-decoration:underline">Recover my Key</a> using your email.
-  </p>
-  <p class="note" style="margin-top:.3rem">After checkout, your API key plan is upgraded automatically via webhook.</p>
-</div>
-<div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85rem;color:#888">
-  <a href="/terms">Terms &amp; Conditions</a> &middot;
-  <a href="/refund">Refund Policy</a> &middot;
-  <a href="/privacy">Privacy Policy</a>
-  &middot;
-  <a href="mailto:support@tomdocs.com">support@tomdocs.com</a>
-</div>
 </body></html>""")
 
     @router.get(
