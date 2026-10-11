@@ -37,6 +37,9 @@ class ApiKey(Base):
     expires_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True, default=None
     )
+    paddle_customer_id: Mapped[str | None] = mapped_column(
+        String(64), nullable=True, default=None
+    )
     period_start: Mapped[date] = mapped_column(Date, default=current_period_start)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 

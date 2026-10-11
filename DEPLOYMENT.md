@@ -68,3 +68,33 @@ See `fly.toml` and [docs/deploy.md](docs/deploy.md) for Fly.io configuration.
 ## Railway
 
 See `railway.json` and [docs/deploy.md](docs/deploy.md) for Railway configuration.
+## Customer Portal (Subscription Management)
+
+Paying users can manage their subscription (cancel, update card, view invoices) via the Paddle customer portal.
+
+### API Usage
+
+```bash
+# Open the subscription management portal (requires API key with active subscription)
+curl -X POST https://tomdocs.com/v1/billing/portal \
+  -H "X-API-Key: dip_..."
+```
+
+Response (success):
+
+```json
+{"billing_provider": "paddle", "portal_url": "https://sandbox-portal.paddle.com/portal-session/..."}
+```
+
+Response (no subscription):
+
+```json
+{"detail": {"code": "no_subscription", "message": "No active subscription found; subscribe first"}}
+```
+
+### Flow
+
+1. User subscribes via Paddle Checkout (landing page → Get Starter/Pro)
+2. Paddle sends `subscription.created` webhook → server stores `paddle_customer_id` on the ApiKey row
+3. User calls `POST /v1/billing/portal` → server creates a Paddle portal session using the stored customer ID
+4. User is redirected to Paddle's hosted portal (cancel / update card / invoices)

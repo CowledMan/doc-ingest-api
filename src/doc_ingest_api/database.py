@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -20,8 +20,31 @@ class Database:
     session_factory: sessionmaker[Session]
 
     def create_all(self) -> None:
-        """Create all model tables."""
+        """Create all model tables and run lightweight migrations."""
         Base.metadata.create_all(self.engine)
+        self._migrate_add_columns()
+
+    def _migrate_add_columns(self) -> None:
+        """Add columns that are missing from pre-existing tables.
+
+        ``create_all`` only creates new tables; it does not alter existing
+        ones. This method detects missing columns and issues idempotent
+        ``ALTER TABLE ... ADD COLUMN`` statements compatible with SQLite
+        and Postgres.
+        """
+        inspector = inspect(self.engine)
+        if not inspector.has_table("api_keys"):
+            return
+        existing = {col["name"] for col in inspector.get_columns("api_keys")}
+        migrations = [
+            ("paddle_customer_id", "VARCHAR(64)"),
+        ]
+        with self.engine.begin() as conn:
+            for column_name, column_type in migrations:
+                if column_name not in existing:
+                    conn.execute(
+                        text(f"ALTER TABLE api_keys ADD COLUMN {column_name} {column_type}")
+                    )
 
 
 def _resolve_driver(database_url: str) -> str:

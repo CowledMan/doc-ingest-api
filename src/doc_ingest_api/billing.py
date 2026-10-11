@@ -81,6 +81,10 @@ class BillingProvider(Protocol):
         """Return subscription status and plan details."""
         ...
 
+    def create_portal_session(self, customer_id: str) -> str:
+        """Create a customer portal session and return the URL."""
+        ...
+
 
 class MockBillingProvider:
     """Deterministic billing provider for local development and testing.
@@ -142,6 +146,10 @@ class MockBillingProvider:
             monthly_page_quota=500,
             provider=self.provider_name,
         )
+
+    def create_portal_session(self, customer_id: str) -> str:
+        """Return a fake portal URL for mock mode."""
+        return f"https://sandbox-portal.paddle.com/mock/{customer_id}"
 
 
 def create_billing_provider(

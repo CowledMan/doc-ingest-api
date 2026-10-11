@@ -200,6 +200,20 @@ class PaddleBillingProvider:
             provider=self.provider_name,
         )
 
+    def create_portal_session(self, customer_id: str) -> str:
+        """Create a Paddle customer portal session and return the URL."""
+        response = httpx.post(
+            f"{self.base_url}/customers/{customer_id}/portal-sessions",
+            headers=self._headers(),
+            json={},
+            timeout=30.0,
+        )
+        if response.status_code not in (200, 201):
+            raise PaddleAPIError(response.status_code, response.text)
+        body = response.json()
+        urls = body.get("data", {}).get("urls", {})
+        return str(urls.get("general", {}).get("overview", ""))
+
     def get_config(self) -> dict[str, Any]:
         """Return public billing configuration for the frontend."""
         return {

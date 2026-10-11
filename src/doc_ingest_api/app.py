@@ -422,6 +422,7 @@ def create_app(
             api_key_id = custom.get("api_key_id")
 
             plan_quotas = {"free": 100, "starter": 500, "pro": 5000}
+            paddle_customer_id = event_data.get("customer_id", "")
             if event_type in ("subscription.created", "subscription.updated", "subscription.canceled") and api_key_id:
                 if event_type == "subscription.canceled":
                     plan = "free"
@@ -437,6 +438,8 @@ def create_app(
                     if key is not None:
                         key.plan = plan
                         key.monthly_page_quota = quota
+                        if paddle_customer_id:
+                            key.paddle_customer_id = str(paddle_customer_id)
 
             return {
                 "billing_provider": "paddle",
@@ -487,6 +490,28 @@ def create_app(
             "status": subscription.status,
             "plan_name": subscription.plan_name,
             "monthly_page_quota": subscription.monthly_page_quota,
+        }
+
+    @router.post("/v1/billing/portal", tags=["billing"])
+    def create_portal(
+        request: Request,
+        api_key: Annotated[ApiKey, Depends(_get_api_key)],
+    ) -> dict[str, Any]:
+        """Create a customer portal session for subscription management."""
+        state = _app_state(request)
+        if state.settings.paddle_env in ("sandbox", "live"):
+            customer_id = api_key.paddle_customer_id
+            if not customer_id:
+                raise _api_error(404, "no_subscription", "No active subscription found; subscribe first")
+            portal_url = state.billing_provider.create_portal_session(customer_id)
+            return {
+                "billing_provider": "paddle",
+                "portal_url": portal_url,
+            }
+        portal_url = state.billing_provider.create_portal_session(f"cus_test_{api_key.id:08d}")
+        return {
+            "billing_provider": state.billing_provider.provider_name,
+            "portal_url": portal_url,
         }
 
     @router.get("/v1/billing/config", tags=["billing"])
