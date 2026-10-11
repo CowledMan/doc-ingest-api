@@ -183,6 +183,8 @@ def create_app(
     app = FastAPI(
     title="Document Ingest API",
     version="0.2.0",
+    docs_url="/docs/swagger",
+    redoc_url=None,
     description=(
         "Multi-engine document parsing API with confidence-based routing "
         "between anydoc, markitdown, and docling."
@@ -221,6 +223,7 @@ def create_app(
                 "/redoc",
                 "/samples/demo.pdf",
                 "/billing/success",
+                "/docs/swagger",
             }
         ):
             return await call_next(request)
@@ -1028,6 +1031,230 @@ async function openPortal() {
 loadBillingConfig();
 </script>
 </body></html>""")
+
+
+    @router.get("/docs", tags=["health"], response_class=HTMLResponse, include_in_schema=False)
+    def api_docs() -> HTMLResponse:
+        """Serve branded API documentation page."""
+        return HTMLResponse(content=r'''<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DoIngest API Documentation</title>
+<meta name="description" content="Document Ingest API reference — authentication, endpoints, error codes, rate limits, SDK, and MCP integration.">
+<style>
+:root{--primary:#457b9d;--primary-dark:#1d3557;--accent:#e63946;--bg:#f8f9fa;--bg-alt:#e9ecef;--text:#1a1a2e;--text-light:#555;--border:#dee2e6;--radius:8px;--shadow:0 2px 8px rgba(0,0,0,.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--text);background:var(--bg);line-height:1.65}
+a{color:var(--primary);text-decoration:none}a:hover{text-decoration:underline}
+.container{max-width:1080px;margin:0 auto;padding:0 1.5rem}
+nav{background:var(--primary-dark);padding:.8rem 0}
+nav .container{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem}
+nav .brand{color:#fff;font-weight:700;font-size:1.1rem}
+nav .links{display:flex;gap:1.2rem;flex-wrap:wrap}
+nav .links a{color:#e9ecef;font-size:.9rem}
+.doc-hero{background:var(--bg-alt);padding:3rem 0 2rem;text-align:center}
+.doc-hero h1{font-size:2rem;color:var(--primary-dark);margin-bottom:.5rem}
+.doc-hero p{color:var(--text-light);max-width:560px;margin:0 auto 1.2rem}
+.btn{display:inline-block;padding:.6rem 1.5rem;border-radius:var(--radius);font-size:.9rem;font-weight:600;cursor:pointer;border:none}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-outline{background:transparent;color:var(--primary);border:2px solid var(--primary)}
+.btn:hover{opacity:.9}
+.layout{display:grid;grid-template-columns:220px 1fr;gap:2.5rem;padding:2.5rem 0}
+.toc{position:sticky;top:1rem;align-self:start;max-height:calc(100vh - 2rem);overflow-y:auto}
+.toc h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.5px;color:var(--text-light);margin-bottom:.6rem}
+.toc a{display:block;padding:.25rem 0;font-size:.85rem;color:var(--text-light);border-left:2px solid transparent;padding-left:.6rem}
+.toc a:hover{color:var(--primary);border-left-color:var(--primary);text-decoration:none}
+.doc-content{min-width:0}
+.doc-content section{margin-bottom:2.5rem;padding:0}
+.doc-content h2{font-size:1.4rem;color:var(--primary-dark);border-bottom:2px solid var(--bg-alt);padding-bottom:.4rem;margin-bottom:1rem}
+.doc-content h3{font-size:1rem;margin:1.2rem 0 .4rem}
+.doc-content p{font-size:.9rem;margin:.5rem 0}
+.doc-content code{background:var(--bg-alt);padding:.15rem .4rem;border-radius:4px;font-size:.85rem;font-family:monospace}
+.doc-content pre{background:#1a1a2e;color:#a8dadc;padding:1rem;border-radius:var(--radius);overflow-x:auto;font-size:.83rem;margin:.8rem 0}
+.doc-content pre code{background:transparent;padding:0;font-size:.83rem}
+.doc-content table{width:100%;border-collapse:collapse;margin:.8rem 0;font-size:.85rem}
+.doc-content th,.doc-content td{border:1px solid var(--border);padding:.5rem .7rem;text-align:left}
+.doc-content th{background:var(--bg-alt);font-weight:600}
+.doc-content .method{display:inline-block;padding:.1rem .5rem;border-radius:4px;font-size:.75rem;font-weight:700;font-family:monospace}
+.m-get{background:#d4edda;color:#155724}
+.m-post{background:#d1ecf1;color:#0c5460}
+.tag{display:inline-block;background:var(--bg-alt);color:var(--text-light);padding:.05rem .4rem;border-radius:3px;font-size:.75rem}
+.cta-box{background:var(--primary-dark);color:#fff;border-radius:var(--radius);padding:2rem;text-align:center;margin-top:2.5rem}
+.cta-box p{font-size:1.05rem;margin-bottom:1rem;color:#cbd5e1}
+.cta-box .btn{background:#fff;color:var(--primary-dark)}
+footer{background:var(--primary-dark);color:#cbd5e1;padding:2rem 0 1rem;margin-top:2rem}
+footer .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;margin-bottom:1rem}
+footer h4{color:#fff;font-size:.85rem;margin-bottom:.5rem}
+footer a{color:#cbd5e1;display:block;font-size:.82rem;padding:.1rem 0}
+footer .copyright{text-align:center;font-size:.75rem;color:#64748b;border-top:1px solid #2d4a6b;padding-top:.8rem;margin-top:.8rem}
+@media(max-width:768px){.layout{grid-template-columns:1fr}.toc{position:static;max-height:none;display:none}footer .grid{grid-template-columns:1fr}.doc-hero h1{font-size:1.5rem}}
+</style></head>
+<body>
+<nav><div class="container"><span class="brand">DoIngest</span><div class="links"><a href="/#pricing">Pricing</a><a href="/docs">Docs</a><a href="https://github.com/user/doc-ingest-api">GitHub</a><a href="mailto:support@tomdocs.com">Contact</a></div></div></nav>
+<div class="doc-hero"><div class="container">
+  <h1>DoIngest API Documentation</h1>
+  <p>Multi-engine document parsing with confidence-based routing. Convert PDF, DOCX, XLSX, and PPTX into clean Markdown.</p>
+  <a href="/docs/swagger" class="btn btn-primary" style="margin-right:.5rem">Open Interactive Docs</a>
+  <a href="/#try-free" class="btn btn-outline">Get Free API Key</a>
+</div></div>
+
+<div class="container"><div class="layout">
+<aside class="toc">
+  <h3>On this page</h3>
+  <a href="#quickstart">Quickstart</a>
+  <a href="#authentication">Authentication</a>
+  <a href="#endpoints">Endpoints</a>
+  <a href="#parse-detail">POST /v1/parse</a>
+  <a href="#errors">Error Codes</a>
+  <a href="#rate-limits">Rate Limits</a>
+  <a href="#sdk-mcp">SDK &amp; MCP</a>
+</aside>
+
+<main class="doc-content">
+
+<section id="quickstart">
+  <h2>Quickstart</h2>
+  <p>Parse a document in one API call:</p>
+  <pre><code>curl -X POST https://tomdocs.com/v1/parse \
+  -H "X-API-Key: dip_your_key_here" \
+  -F "file=@report.pdf"</code></pre>
+  <p>Response:</p>
+  <pre><code>{
+  "markdown": "# Chapter 1\n\nParsed content...",
+  "metadata": {
+    "engine_used": "markitdown",
+    "confidence": 0.95,
+    "page_count": 3,
+    "duration_ms": 1420.5
+  }
+}</code></pre>
+</section>
+
+<section id="authentication">
+  <h2>Authentication</h2>
+  <p>All API endpoints require an <code>X-API-Key</code> header. Keys are prefixed with <code>dip_</code> and look like <code>dip_AbC123XyZ...</code>.</p>
+  <table>
+    <tr><th>Key type</th><th>Pages/mo</th><th>Validity</th></tr>
+    <tr><td>Free</td><td>5</td><td>Until cancelled</td></tr>
+    <tr><td>Demo</td><td>20</td><td>24 hours</td></tr>
+    <tr><td>Starter</td><td>500</td><td>Active subscription</td></tr>
+    <tr><td>Pro</td><td>5000</td><td>Active subscription</td></tr>
+  </table>
+</section>
+
+<section id="endpoints">
+  <h2>Endpoints</h2>
+  <table>
+    <tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr>
+    <tr><td><span class="method m-get">GET</span></td><td><code>/healthz</code></td><td>Liveness probe</td><td>No</td></tr>
+    <tr><td><span class="method m-post">POST</span></td><td><code>/v1/demo-keys</code></td><td>Create demo key (20 pages/24h)</td><td>No</td></tr>
+    <tr><td><span class="method m-post">POST</span></td><td><code>/v1/parse</code></td><td>Parse a document synchronously</td><td><span class="tag">API Key</span></td></tr>
+    <tr><td><span class="method m-post">POST</span></td><td><code>/v1/parse/async</code></td><td>Queue a document for parsing</td><td><span class="tag">API Key</span></td></tr>
+    <tr><td><span class="method m-get">GET</span></td><td><code>/v1/jobs/{job_id}</code></td><td>Check async job status</td><td><span class="tag">API Key</span></td></tr>
+    <tr><td><span class="method m-get">GET</span></td><td><code>/v1/billing/subscription</code></td><td>Get subscription status</td><td><span class="tag">API Key</span></td></tr>
+    <tr><td><span class="method m-post">POST</span></td><td><code>/v1/billing/checkout</code></td><td>Create checkout session</td><td><span class="tag">API Key</span></td></tr>
+    <tr><td><span class="method m-post">POST</span></td><td><code>/v1/billing/portal</code></td><td>Open customer portal</td><td><span class="tag">API Key</span></td></tr>
+    <tr><td><span class="method m-get">GET</span></td><td><code>/v1/billing/config</code></td><td>Public billing config (Paddle.js)</td><td>No</td></tr>
+    <tr><td><span class="method m-post">POST</span></td><td><code>/v1/keys/recover</code></td><td>Recover lost keys by email</td><td>No</td></tr>
+  </table>
+</section>
+
+<section id="parse-detail">
+  <h2>POST /v1/parse</h2>
+  <h3>Request (multipart/form-data)</h3>
+  <table>
+    <tr><th>Field</th><th>Type</th><th>Required</th><th>Description</th></tr>
+    <tr><td><code>file</code></td><td>binary</td><td>Yes</td><td>Document file (PDF, DOCX, XLSX, PPTX)</td></tr>
+    <tr><td><code>category</code></td><td>string</td><td>No</td><td>Hint for parser routing</td></tr>
+  </table>
+  <h3>Response</h3>
+  <pre><code>{
+  "markdown": "...",
+  "metadata": {
+    "engine_used": "anydoc",
+    "confidence": 0.95,
+    "page_count": 3,
+    "duration_ms": 1420.5
+  }
+}</code></pre>
+  <p>Demo keys also receive <code>"upgrade_url": "/#pricing"</code>.</p>
+</section>
+
+<section id="errors">
+  <h2>Error Codes</h2>
+  <table>
+    <tr><th>HTTP</th><th>Code</th><th>Description</th></tr>
+    <tr><td>400</td><td><code>missing_signature</code></td><td>Webhook signature header absent (mock mode)</td></tr>
+    <tr><td>400</td><td><code>invalid_payload</code></td><td>Webhook body is not valid JSON</td></tr>
+    <tr><td>401</td><td><code>missing_api_key</code></td><td>No <code>X-API-Key</code> header</td></tr>
+    <tr><td>401</td><td><code>invalid_api_key</code></td><td>Key not found, inactive, or expired</td></tr>
+    <tr><td>401</td><td><code>invalid_signature</code></td><td>Webhook HMAC verification failed</td></tr>
+    <tr><td>404</td><td><code>job_not_found</code></td><td>Parse job does not exist</td></tr>
+    <tr><td>404</td><td><code>no_subscription</code></td><td>No active subscription for portal</td></tr>
+    <tr><td>404</td><td><code>email_not_found</code></td><td>No active keys for this email</td></tr>
+    <tr><td>422</td><td><code>invalid_email</code></td><td>Email format validation failed</td></tr>
+    <tr><td>422</td><td><code>invalid_plan</code></td><td>Checkout plan must be starter or pro</td></tr>
+    <tr><td>429</td><td><code>rate_limited</code></td><td>IP or key rate limit exceeded</td></tr>
+    <tr><td>429</td><td><code>quota_exceeded</code></td><td>Monthly page quota exhausted</td></tr>
+    <tr><td>502</td><td><code>parser_failed</code></td><td>All parsers failed</td></tr>
+    <tr><td>503</td><td><code>ocr_not_configured</code></td><td>Scanned document but no OCR key</td></tr>
+    <tr><td>504</td><td><code>parser_timeout</code></td><td>Parser exceeded timeout</td></tr>
+  </table>
+</section>
+
+<section id="rate-limits">
+  <h2>Rate Limits</h2>
+  <table>
+    <tr><th>Scope</th><th>Limit</th><th>Window</th></tr>
+    <tr><td>Per IP (unauthenticated)</td><td>50 requests</td><td>1 hour</td></tr>
+    <tr><td>Per API key</td><td>60 requests</td><td>1 minute</td></tr>
+  </table>
+  <p>Exceeded limits return <code>429</code> with a <code>Retry-After</code> header. Successful responses include <code>X-RateLimit-Remaining</code>.</p>
+</section>
+
+<section id="sdk-mcp">
+  <h2>SDK &amp; MCP</h2>
+  <h3>Python SDK</h3>
+  <pre><code>from doc_ingest_sdk import DocIngestClient
+
+client = DocIngestClient(
+    base_url="https://tomdocs.com",
+    api_key="dip_...",
+)
+result = client.parse_document(file_path="report.pdf")
+print(result.markdown)</code></pre>
+  <h3>MCP Server (AI agents)</h3>
+  <pre><code>{
+  "mcpServers": {
+    "doc-ingest": {
+      "command": "uv",
+      "args": ["run", "doc-ingest-mcp"],
+      "env": {
+        "DOC_INGEST_BASE_URL": "https://tomdocs.com",
+        "DOC_INGEST_API_KEY": "dip_..."
+      }
+    }
+  }
+}</code></pre>
+</section>
+
+<div class="cta-box">
+  <p>Ready to parse your first document?</p>
+  <a href="/#try-free" class="btn">Get Free API Key</a>
+</div>
+
+</main>
+</div></div>
+
+<footer><div class="container">
+  <div class="grid">
+    <div><h4>Product</h4><a href="/#pricing">Pricing</a><a href="/docs/swagger">Interactive Docs</a><a href="#">Status</a></div>
+    <div><h4>Legal</h4><a href="/terms">Terms</a><a href="/refund">Refund Policy</a><a href="/privacy">Privacy Policy</a></div>
+    <div><h4>Contact</h4><a href="mailto:support@tomdocs.com">support@tomdocs.com</a><a href="https://github.com/user/doc-ingest-api">GitHub</a></div>
+  </div>
+  <div class="copyright">&copy; 2026 Shandong Tengyu Electronic Technology Co., Ltd.</div>
+</div></footer>
+</body></html>''')
 
     @router.get(
         "/billing/success",
