@@ -685,6 +685,8 @@ loadBillingConfig();
   <a href="/terms">Terms &amp; Conditions</a> &middot;
   <a href="/refund">Refund Policy</a> &middot;
   <a href="/privacy">Privacy Policy</a>
+  &middot;
+  <a href="mailto:support@tomdocs.com">support@tomdocs.com</a>
 </div>
 </body></html>""")
 
@@ -713,6 +715,8 @@ automatically within a minute.</p>
   <a href="/terms">Terms &amp; Conditions</a> &middot;
   <a href="/refund">Refund Policy</a> &middot;
   <a href="/privacy">Privacy Policy</a>
+  &middot;
+  <a href="mailto:support@tomdocs.com">support@tomdocs.com</a>
 </div>
 </body></html>""")
 
@@ -781,6 +785,8 @@ footer{{margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85
   <a href="/terms">Terms</a> &middot;
   <a href="/refund">Refund Policy</a> &middot;
   <a href="/privacy">Privacy Policy</a>
+  &middot;
+  <a href="mailto:support@tomdocs.com">support@tomdocs.com</a>
 </footer>
 </body></html>""")
 

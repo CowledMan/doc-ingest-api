@@ -98,6 +98,18 @@ class TestLegalPages:
         assert 'href="/refund"' in response.text
         assert 'href="/privacy"' in response.text
 
+    def test_landing_contains_contact_email(self) -> None:
+        client = _app()
+        response = client.get("/")
+        assert "support@tomdocs.com" in response.text
+        assert 'href="mailto:support@tomdocs.com"' in response.text
+
+    def test_legal_pages_contain_contact_email(self) -> None:
+        client = _app()
+        for path in ("/terms", "/refund", "/privacy"):
+            response = client.get(path)
+            assert "support@tomdocs.com" in response.text, f"missing contact on {path}"
+
     def test_legal_pages_have_footer_navigation(self) -> None:
         client = _app()
         for path in ("/terms", "/refund", "/privacy"):
