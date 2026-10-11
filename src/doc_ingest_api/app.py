@@ -681,6 +681,11 @@ loadBillingConfig();
   </div>
   <p class="note" style="margin-top:.5rem">After checkout, your API key plan is upgraded automatically via webhook.</p>
 </div>
+<div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85rem;color:#888">
+  <a href="/terms">Terms &amp; Conditions</a> &middot;
+  <a href="/refund">Refund Policy</a> &middot;
+  <a href="/privacy">Privacy Policy</a>
+</div>
 </body></html>""")
 
     @router.get(
@@ -704,6 +709,11 @@ automatically within a minute.</p>
 <pre><code>curl https://tomdocs.com/v1/billing/subscription \
   -H "X-API-Key: dip_..."</code></pre>
 <p><a href="/">Back to home</a> &middot; <a href="/docs">API reference</a></p>
+<div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85rem;color:#888">
+  <a href="/terms">Terms &amp; Conditions</a> &middot;
+  <a href="/refund">Refund Policy</a> &middot;
+  <a href="/privacy">Privacy Policy</a>
+</div>
 </body></html>""")
 
     # --- Demo sandbox ---
@@ -748,5 +758,168 @@ automatically within a minute.</p>
             media_type="application/pdf",
             filename="demo.pdf",
         )
+
+
+    # --- Legal pages (Paddle domain review requirement) ---
+
+    def _legal_page(title: str, body: str) -> HTMLResponse:
+        """Render a self-contained legal page with consistent styling."""
+        return HTMLResponse(content=f"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>{title} | DoIngest</title>
+<style>
+body{{font-family:system-ui,sans-serif;margin:0;padding:2rem;max-width:800px;margin:auto;background:#f8f9fa;color:#1a1a2e;line-height:1.7}}
+h1{{font-size:1.8rem;margin-bottom:.5rem}} h2{{margin-top:1.5rem;font-size:1.2rem}}
+p{{margin:.8rem 0}} a{{color:#457b9d}}
+footer{{margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85rem;color:#888}}
+</style></head>
+<body>
+<h1>{title}</h1>
+{body}
+<footer>
+  <a href="/">Back to home</a> &middot;
+  <a href="/terms">Terms</a> &middot;
+  <a href="/refund">Refund Policy</a> &middot;
+  <a href="/privacy">Privacy Policy</a>
+</footer>
+</body></html>""")
+
+    @router.get("/terms", tags=["health"], response_class=HTMLResponse, include_in_schema=False)
+    def terms_page() -> HTMLResponse:
+        """Serve Terms & Conditions."""
+        body = """
+<p><strong>Effective date:</strong> October 11, 2026</p>
+
+<p>These Terms &amp; Conditions ("Terms") govern your access to and use of the Document Ingest API service ("Service") provided by DoIngest ("we", "us", "our"), an independent software product operated by an individual developer. By creating an API key, subscribing to a plan, or otherwise using the Service, you agree to be bound by these Terms.</p>
+
+<h2>1. Seller and Payment Processing</h2>
+<p>DoIngest is the seller of the Service. Paddle.com acts as the Merchant of Record for all transactions. This means that Paddle.com handles payment processing, invoicing, tax collection, and customer billing on our behalf. Charges on your credit card or bank statement will appear as "Paddle.com". Paddle's own terms of use apply to the payment transaction.</p>
+
+<h2>2. Service Description</h2>
+<p>DoIngest provides a web-based API that converts documents (including PDF, DOCX, XLSX, and PPTX files) into clean, structured Markdown text. The Service uses multiple parsing engines with confidence-based routing to deliver the best possible extraction quality.</p>
+
+<h2>3. Subscription and Billing</h2>
+<p>The Service is offered on a monthly subscription basis. Plans and pricing are listed on our pricing page. Subscriptions are billed monthly in advance through Paddle checkout. You may cancel your subscription at any time; cancellation takes effect at the end of the current billing period, and you will retain access until then. We do not offer partial-period refunds for unused pages unless required by applicable law or our Refund Policy.</p>
+
+<h2>4. Acceptable Use</h2>
+<p>You agree not to:</p>
+<p>(a) upload or transmit content that is illegal, harmful, threatening, abusive, defamatory, or otherwise objectionable;<br>
+(b) attempt to circumvent usage quotas or rate limits;<br>
+(c) publicly share, resell, or sublicense your API keys;<br>
+(d) use the Service to build a product that directly competes with DoIngest;<br>
+(e) reverse-engineer, decompile, or disassemble any part of the Service.</p>
+<p>We reserve the right to suspend or terminate your access if we reasonably believe you have violated these Terms. Where feasible, we will provide notice of the violation and an opportunity to cure.</p>
+
+<h2>5. Intellectual Property</h2>
+<p>You retain all rights to the documents you upload and the content you extract. We claim no ownership over your data. The Service software, branding, and documentation are the property of DoIngest.</p>
+
+<h2>6. Disclaimer of Warranties</h2>
+<p>THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. We do not warrant that the Service will be uninterrupted, error-free, or that extracted content will be accurate or complete.</p>
+
+<h2>7. Limitation of Liability</h2>
+<p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, DOINGEST SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF THE SERVICE. OUR TOTAL AGGREGATE LIABILITY SHALL NOT EXCEED THE AMOUNT YOU PAID US IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.</p>
+
+<h2>8. Governing Law</h2>
+<p>These Terms shall be governed by and construed in accordance with the laws of the jurisdiction in which DoIngest operates, without regard to conflict-of-law principles. Any dispute shall be resolved by binding arbitration or in a court of competent jurisdiction in that jurisdiction.</p>
+
+<h2>9. Changes to These Terms</h2>
+<p>We may update these Terms from time to time. Material changes will be announced on this page at least seven (7) days before taking effect. Your continued use of the Service after changes take effect constitutes acceptance of the updated Terms.</p>
+
+<h2>10. Contact</h2>
+<p>For questions about these Terms, contact us at <a href="mailto:support@tomdocs.com">support@tomdocs.com</a>.</p>
+"""
+        return _legal_page("Terms &amp; Conditions", body)
+
+    @router.get("/refund", tags=["health"], response_class=HTMLResponse, include_in_schema=False)
+    def refund_page() -> HTMLResponse:
+        """Serve Refund Policy."""
+        body = """
+<p><strong>Effective date:</strong> October 11, 2026</p>
+
+<p>This Refund Policy applies to all subscriptions for the DoIngest Document Ingest API Service ("Service"). DoIngest ("we", "us", "our") is the seller of the Service. Paddle.com acts as the Merchant of Record and handles all payment processing, invoicing, and refunds on our behalf.</p>
+
+<h2>1. Merchant of Record</h2>
+<p>Paddle.com processes your payment and is the entity responsible for issuing invoices and processing refunds. When you request a refund, Paddle processes the transaction and the refunded amount will be returned to your original payment method. Charges on your statement will appear as "Paddle.com".</p>
+
+<h2>2. Refund Eligibility</h2>
+<p><strong>First-time subscribers:</strong> You may request a full refund within fourteen (14) days of your initial subscription payment, no questions asked.</p>
+<p><strong>Subsequent billing cycles:</strong> For months after the first billing period, we generally do not offer refunds for partially used subscription periods. However, if you believe a refund is warranted due to a Service defect, billing error, or exceptional circumstance, contact us and we will review your case in good faith and in accordance with Paddle's refund policy.</p>
+
+<h2>3. How to Request a Refund</h2>
+<p>You may request a refund by:</p>
+<p>(a) Clicking the refund link in the receipt email sent to you by Paddle after your purchase; or<br>
+(b) Emailing us at <a href="mailto:support@tomdocs.com">support@tomdocs.com</a> with your order or subscription reference.</p>
+<p>Refunds are typically processed by Paddle within five (5) to ten (10) business days, depending on your payment provider.</p>
+
+<h2>4. Cancellation</h2>
+<p>You may cancel your subscription at any time through the customer portal or by emailing us. Cancellation takes effect at the end of the current billing period; you will retain full access until then. There are no cancellation fees.</p>
+
+<h2>5. Chargebacks</h2>
+<p>We encourage you to contact us before filing a chargeback with your bank. We will work with you to resolve billing issues promptly. Chargebacks filed without first attempting to contact us may result in account suspension.</p>
+
+<h2>6. Contact</h2>
+<p>For questions about refunds, contact us at <a href="mailto:support@tomdocs.com">support@tomdocs.com</a>.</p>
+"""
+        return _legal_page("Refund Policy", body)
+
+    @router.get("/privacy", tags=["health"], response_class=HTMLResponse, include_in_schema=False)
+    def privacy_page() -> HTMLResponse:
+        """Serve Privacy Policy."""
+        body = """
+<p><strong>Effective date:</strong> October 11, 2026</p>
+
+<p>This Privacy Policy describes how DoIngest ("we", "us", "our") collects, uses, and protects information in connection with the Document Ingest API Service ("Service"). We are committed to protecting your privacy and complying with applicable data protection laws, including the General Data Protection Regulation (GDPR) and the California Consumer Privacy Act (CCPA).</p>
+
+<h2>1. Information We Collect</h2>
+<p>We collect the following categories of information:</p>
+<p><strong>Account information:</strong> Your email address (collected and managed by Paddle.com during checkout) and a hashed representation of your API key. We do not store your raw API key.</p>
+<p><strong>Document content:</strong> When you upload a document for parsing, we temporarily store its contents to perform the conversion. This content is processed solely to deliver the Service result.</p>
+<p><strong>Usage metadata:</strong> Page count, processing duration, engine used, timestamps, and error messages. This data is used for billing, abuse detection, and service improvement.</p>
+<p><strong>Billing information:</strong> Payment details are handled exclusively by Paddle.com as Merchant of Record. We do not store credit card numbers or bank details.</p>
+
+<h2>2. How We Use Your Information</h2>
+<p>We use collected information to:</p>
+<p>(a) provide, maintain, and improve the Service;<br>
+(b) process payments and prevent billing fraud (via Paddle);<br>
+(c) enforce usage quotas and rate limits;<br>
+(d) diagnose and fix Service issues;<br>
+(e) communicate service updates and security notices.</p>
+
+<h2>3. Third-Party Processors</h2>
+<p>We rely on the following third parties to operate the Service:</p>
+<p><strong>Paddle.com</strong> acts as Merchant of Record and processes payments, invoices, and customer records. Paddle's own privacy policy governs the payment data they collect. See <a href="https://paddle.com/legal/privacy">https://paddle.com/legal/privacy</a>.</p>
+<p><strong>Cloud OCR providers</strong> (such as Alibaba Cloud) may receive scanned document images when the Service routes such documents for OCR. These providers process data solely to return extracted text.</p>
+<p><strong>Cloud hosting providers</strong> (Render, Fly.io, or Railway) store application data and process requests. They act as data processors under our instruction.</p>
+
+<h2>4. Data Retention</h2>
+<p><strong>Document content:</strong> Uploaded documents and their extracted output are retained only as long as necessary to complete the parsing request. Temporarily stored files are deleted after processing. If a document is queued for asynchronous parsing, it is stored until the job completes and the result is retrieved or expires.</p>
+<p><strong>Usage metadata:</strong> Retained for billing accuracy, quota management, and dispute resolution for up to twelve (12) months.</p>
+<p><strong>Account records:</strong> Retained for the duration of your subscription and as required by law.</p>
+
+<h2>5. Your Rights</h2>
+<p>Depending on your jurisdiction, you may have the right to:</p>
+<p>(a) access the personal data we hold about you;<br>
+(b) request correction or deletion of your data;<br>
+(c) object to or restrict certain processing;<br>
+(d) receive a portable copy of your data;<br>
+(e) withdraw consent (where processing is based on consent).</p>
+<p>To exercise any of these rights, email <a href="mailto:support@tomdocs.com">support@tomdocs.com</a>. We will respond within thirty (30) days.</p>
+
+<h2>6. GDPR</h2>
+<p>For users in the European Union and European Economic Area, we act as a data controller for account and usage data, and as a data processor for document content you upload. Our lawful bases for processing include performance of contract (providing the Service), legitimate interests (service improvement and abuse prevention), and legal obligations (billing records).</p>
+
+<h2>7. CCPA</h2>
+<p>For California residents, we do not sell or share personal information as defined by the CCPA. You have the right to know what personal information is collected, request deletion, and be free from discrimination for exercising your rights.</p>
+
+<h2>8. Security</h2>
+<p>We use industry-standard measures to protect your data, including encrypted connections (HTTPS/TLS), hashed API keys, and access controls. No system is completely secure; we encourage you to use unique API keys and report suspected breaches immediately.</p>
+
+<h2>9. Changes to This Policy</h2>
+<p>We may update this Privacy Policy from time to time. Material changes will be announced on this page. Your continued use of the Service after changes take effect constitutes acceptance of the updated policy.</p>
+
+<h2>10. Contact</h2>
+<p>For privacy inquiries, contact us at <a href="mailto:support@tomdocs.com">support@tomdocs.com</a>.</p>
+"""
+        return _legal_page("Privacy Policy", body)
 
     return app
