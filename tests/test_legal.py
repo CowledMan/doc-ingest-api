@@ -39,6 +39,7 @@ class TestLegalPages:
         response = client.get("/terms")
         assert response.status_code == 200
         assert "DoIngest" in response.text
+        assert "Tengyu" in response.text
         assert "Terms" in response.text
         assert "Paddle.com" in response.text
 
@@ -47,6 +48,7 @@ class TestLegalPages:
         response = client.get("/refund")
         assert response.status_code == 200
         assert "DoIngest" in response.text
+        assert "Tengyu" in response.text
         assert "Refund" in response.text
         assert "Merchant of Record" in response.text
 
@@ -55,6 +57,7 @@ class TestLegalPages:
         response = client.get("/privacy")
         assert response.status_code == 200
         assert "DoIngest" in response.text
+        assert "Tengyu" in response.text
         assert "Privacy" in response.text
         assert "GDPR" in response.text
         assert "CCPA" in response.text
@@ -80,6 +83,12 @@ class TestLegalPages:
         assert "Data Retention" in response.text
         assert "Your Rights" in response.text
         assert "support@tomdocs.com" in response.text
+
+    def test_terms_contains_company_registration(self) -> None:
+        client = _app()
+        response = client.get("/terms")
+        assert "91370481MAD404MG6Q" in response.text
+        assert "Shandong Tengyu Electronic Technology Co., Ltd." in response.text
 
     def test_landing_contains_legal_footer_links(self) -> None:
         client = _app()

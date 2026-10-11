@@ -790,7 +790,7 @@ footer{{margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85
         body = """
 <p><strong>Effective date:</strong> October 11, 2026</p>
 
-<p>These Terms &amp; Conditions ("Terms") govern your access to and use of the Document Ingest API service ("Service") provided by DoIngest ("we", "us", "our"), an independent software product operated by an individual developer. By creating an API key, subscribing to a plan, or otherwise using the Service, you agree to be bound by these Terms.</p>
+<p>These Terms &amp; Conditions ("Terms") govern your access to and use of the Document Ingest API service ("Service") provided by DoIngest ("we", "us", "our"), operated by Shandong Tengyu Electronic Technology Co., Ltd. (\u5c71\u4e1c\u6ed5\u5b87\u7535\u5b50\u79d1\u6280\u6709\u9650\u516c\u53f8), registered in Tengzhou, Shandong, China, company number 91370481MAD404MG6Q. By creating an API key, subscribing to a plan, or otherwise using the Service, you agree to be bound by these Terms.</p>
 
 <h2>1. Seller and Payment Processing</h2>
 <p>DoIngest is the seller of the Service. Paddle.com acts as the Merchant of Record for all transactions. This means that Paddle.com handles payment processing, invoicing, tax collection, and customer billing on our behalf. Charges on your credit card or bank statement will appear as "Paddle.com". Paddle's own terms of use apply to the payment transaction.</p>
@@ -811,16 +811,16 @@ footer{{margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85
 <p>We reserve the right to suspend or terminate your access if we reasonably believe you have violated these Terms. Where feasible, we will provide notice of the violation and an opportunity to cure.</p>
 
 <h2>5. Intellectual Property</h2>
-<p>You retain all rights to the documents you upload and the content you extract. We claim no ownership over your data. The Service software, branding, and documentation are the property of DoIngest.</p>
+<p>You retain all rights to the documents you upload and the content you extract. We claim no ownership over your data. The Service software, branding, and documentation are the property of Shandong Tengyu Electronic Technology Co., Ltd.</p>
 
 <h2>6. Disclaimer of Warranties</h2>
 <p>THE SERVICE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. We do not warrant that the Service will be uninterrupted, error-free, or that extracted content will be accurate or complete.</p>
 
 <h2>7. Limitation of Liability</h2>
-<p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, DOINGEST SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF THE SERVICE. OUR TOTAL AGGREGATE LIABILITY SHALL NOT EXCEED THE AMOUNT YOU PAID US IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.</p>
+<p>TO THE MAXIMUM EXTENT PERMITTED BY LAW, SHANDONG TENGYU ELECTRONIC TECHNOLOGY CO., LTD. SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF THE SERVICE. OUR TOTAL AGGREGATE LIABILITY SHALL NOT EXCEED THE AMOUNT YOU PAID US IN THE TWELVE (12) MONTHS PRECEDING THE CLAIM.</p>
 
 <h2>8. Governing Law</h2>
-<p>These Terms shall be governed by and construed in accordance with the laws of the jurisdiction in which DoIngest operates, without regard to conflict-of-law principles. Any dispute shall be resolved by binding arbitration or in a court of competent jurisdiction in that jurisdiction.</p>
+<p>These Terms shall be governed by and construed in accordance with the laws of the People\u2019s Republic of China, without regard to conflict-of-law principles. Any dispute shall be resolved by binding arbitration or in a court of competent jurisdiction in that jurisdiction.</p>
 
 <h2>9. Changes to These Terms</h2>
 <p>We may update these Terms from time to time. Material changes will be announced on this page at least seven (7) days before taking effect. Your continued use of the Service after changes take effect constitutes acceptance of the updated Terms.</p>
@@ -836,7 +836,7 @@ footer{{margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85
         body = """
 <p><strong>Effective date:</strong> October 11, 2026</p>
 
-<p>This Refund Policy applies to all subscriptions for the DoIngest Document Ingest API Service ("Service"). DoIngest ("we", "us", "our") is the seller of the Service. Paddle.com acts as the Merchant of Record and handles all payment processing, invoicing, and refunds on our behalf.</p>
+<p>This Refund Policy applies to all subscriptions for the DoIngest Document Ingest API Service ("Service"). DoIngest ("we", "us", "our"), operated by Shandong Tengyu Electronic Technology Co., Ltd., is the seller of the Service. Paddle.com acts as the Merchant of Record and handles all payment processing, invoicing, and refunds on our behalf.</p>
 
 <h2>1. Merchant of Record</h2>
 <p>Paddle.com processes your payment and is the entity responsible for issuing invoices and processing refunds. When you request a refund, Paddle processes the transaction and the refunded amount will be returned to your original payment method. Charges on your statement will appear as "Paddle.com".</p>
@@ -868,7 +868,7 @@ footer{{margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85
         body = """
 <p><strong>Effective date:</strong> October 11, 2026</p>
 
-<p>This Privacy Policy describes how DoIngest ("we", "us", "our") collects, uses, and protects information in connection with the Document Ingest API Service ("Service"). We are committed to protecting your privacy and complying with applicable data protection laws, including the General Data Protection Regulation (GDPR) and the California Consumer Privacy Act (CCPA).</p>
+<p>This Privacy Policy describes how DoIngest ("we", "us", "our"), operated by Shandong Tengyu Electronic Technology Co., Ltd., collects, uses, and protects information in connection with the Document Ingest API Service ("Service"). We are committed to protecting your privacy and complying with applicable data protection laws, including the General Data Protection Regulation (GDPR) and the California Consumer Privacy Act (CCPA).</p>
 
 <h2>1. Information We Collect</h2>
 <p>We collect the following categories of information:</p>
