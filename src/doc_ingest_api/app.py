@@ -623,91 +623,91 @@ def create_app(
 <title>DoIngest — Turn Documents into Clean Markdown via One API Call</title>
 <meta name="description" content="Multi-engine document parsing API with confidence-based routing. PDF, DOCX, XLSX, PPTX to Markdown.">
 <style>
-:root{{--primary:#457b9d;--primary-dark:#1d3557;--accent:#e63946;--bg:#f8f9fa;--bg-alt:#e9ecef;--text:#1a1a2e;--text-light:#555;--border:#dee2e6;--radius:8px;--shadow:0 2px 8px rgba(0,0,0,.08)}}
-*{{box-sizing:border-box;margin:0;padding:0}}
-body{{font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--text);background:var(--bg);line-height:1.6}}
-a{{color:var(--primary);text-decoration:none}} a:hover{{text-decoration:underline}}
-.container{{max-width:1080px;margin:0 auto;padding:0 1.5rem}}
+:root{--primary:#457b9d;--primary-dark:#1d3557;--accent:#e63946;--bg:#f8f9fa;--bg-alt:#e9ecef;--text:#1a1a2e;--text-light:#555;--border:#dee2e6;--radius:8px;--shadow:0 2px 8px rgba(0,0,0,.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,-apple-system,sans-serif;color:var(--text);background:var(--bg);line-height:1.6}
+a{color:var(--primary);text-decoration:none} a:hover{text-decoration:underline}
+.container{max-width:1080px;margin:0 auto;padding:0 1.5rem}
 /* Nav */
-nav{{background:var(--primary-dark);padding:.8rem 0}}
-nav .container{{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem}}
-nav .brand{{color:#fff;font-weight:700;font-size:1.1rem}}
-nav .links{{display:flex;gap:1.2rem;flex-wrap:wrap}}
-nav .links a{{color:#e9ecef;font-size:.9rem}}
+nav{background:var(--primary-dark);padding:.8rem 0}
+nav .container{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.5rem}
+nav .brand{color:#fff;font-weight:700;font-size:1.1rem}
+nav .links{display:flex;gap:1.2rem;flex-wrap:wrap}
+nav .links a{color:#e9ecef;font-size:.9rem}
 /* Hero */
-.hero{{background:linear-gradient(135deg,var(--primary-dark) 0%,var(--primary) 100%);color:#fff;padding:4rem 0 3rem;text-align:center}}
-.hero h1{{font-size:2.5rem;margin-bottom:.8rem;line-height:1.2}}
-.hero p{{font-size:1.15rem;color:#cbd5e1;margin-bottom:1.5rem;max-width:640px;margin-inline:auto}}
-.hero .ctas{{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}}
-.btn{{display:inline-block;padding:.7rem 1.8rem;border-radius:var(--radius);font-size:.95rem;font-weight:600;cursor:pointer;border:none;text-decoration:none!important}}
-.btn-primary{{background:#fff;color:var(--primary-dark)}}
-.btn-outline{{background:transparent;color:#fff;border:2px solid #fff}}
-.btn:hover{{opacity:.9}}
+.hero{background:linear-gradient(135deg,var(--primary-dark) 0%,var(--primary) 100%);color:#fff;padding:4rem 0 3rem;text-align:center}
+.hero h1{font-size:2.5rem;margin-bottom:.8rem;line-height:1.2}
+.hero p{font-size:1.15rem;color:#cbd5e1;margin-bottom:1.5rem;max-width:640px;margin-inline:auto}
+.hero .ctas{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap}
+.btn{display:inline-block;padding:.7rem 1.8rem;border-radius:var(--radius);font-size:.95rem;font-weight:600;cursor:pointer;border:none;text-decoration:none!important}
+.btn-primary{background:#fff;color:var(--primary-dark)}
+.btn-outline{background:transparent;color:#fff;border:2px solid #fff}
+.btn:hover{opacity:.9}
 /* Terminal */
-.terminal{{background:#1a1a2e;color:#a8dadc;border-radius:var(--radius);padding:1.2rem;margin:2rem auto 0;max-width:680px;text-align:left;box-shadow:var(--shadow);overflow-x:auto}}
-.terminal .dots{{display:flex;gap:6px;margin-bottom:.8rem}}
-.terminal .dots span{{width:10px;height:10px;border-radius:50%;display:inline-block}}
-.terminal .dots .r{{background:#ff5f56}}.terminal .dots .y{{background:#ffbd2e}}.terminal .dots .g{{background:#27c93f}}
-.terminal pre{{font-family:monospace;font-size:.85rem;white-space:pre}}
-.terminal .c-key{{color:#e63946}}.terminal .c-str{{color:#f1fa8c}}.terminal .c-flag{{color:#7c7cf8}}
+.terminal{background:#1a1a2e;color:#a8dadc;border-radius:var(--radius);padding:1.2rem;margin:2rem auto 0;max-width:680px;text-align:left;box-shadow:var(--shadow);overflow-x:auto}
+.terminal .dots{display:flex;gap:6px;margin-bottom:.8rem}
+.terminal .dots span{width:10px;height:10px;border-radius:50%;display:inline-block}
+.terminal .dots .r{background:#ff5f56}.terminal .dots .y{background:#ffbd2e}.terminal .dots .g{background:#27c93f}
+.terminal pre{font-family:monospace;font-size:.85rem;white-space:pre}
+.terminal .c-key{color:#e63946}.terminal .c-str{color:#f1fa8c}.terminal .c-flag{color:#7c7cf8}
 /* Sections */
-section{{padding:3.5rem 0}}
-section h2{{font-size:1.8rem;margin-bottom:2rem;text-align:center}}
+section{padding:3.5rem 0}
+section h2{font-size:1.8rem;margin-bottom:2rem;text-align:center}
 /* Features */
-.features-grid{{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem}}
-.feature-card{{background:#fff;border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow)}}
-.feature-card .icon{{width:40px;height:40px;margin-bottom:.8rem}}
-.feature-card h3{{font-size:1rem;margin-bottom:.4rem}}
-.feature-card p{{font-size:.88rem;color:var(--text-light)}}
+.features-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem}
+.feature-card{background:#fff;border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow)}
+.feature-card .icon{width:40px;height:40px;margin-bottom:.8rem}
+.feature-card h3{font-size:1rem;margin-bottom:.4rem}
+.feature-card p{font-size:.88rem;color:var(--text-light)}
 /* Steps */
-.steps{{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;text-align:center}}
-.step{{background:#fff;border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow)}}
-.step .num{{display:inline-block;width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;line-height:32px;font-weight:700;margin-bottom:.6rem}}
-.step h3{{font-size:.95rem}}.step p{{font-size:.85rem;color:var(--text-light)}}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;text-align:center}
+.step{background:#fff;border-radius:var(--radius);padding:1.5rem;box-shadow:var(--shadow)}
+.step .num{display:inline-block;width:32px;height:32px;border-radius:50%;background:var(--primary);color:#fff;line-height:32px;font-weight:700;margin-bottom:.6rem}
+.step h3{font-size:.95rem}.step p{font-size:.85rem;color:var(--text-light)}
 /* Pricing */
-.pricing-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;align-items:stretch}}
-.plan-card{{background:#fff;border-radius:var(--radius);padding:1.8rem;box-shadow:var(--shadow);display:flex;flex-direction:column;position:relative}}
-.plan-card.featured{{border:2px solid var(--primary);transform:scale(1.03)}}
-.plan-card .badge{{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:.2rem .8rem;border-radius:12px;font-size:.75rem;font-weight:700}}
-.plan-card h3{{font-size:1.1rem;margin-bottom:.5rem}}
-.plan-card .price{{font-size:2rem;font-weight:700;color:var(--primary-dark)}}
-.plan-card .quota{{font-size:.85rem;color:var(--text-light);margin-bottom:1rem}}
-.plan-card ul{{list-style:none;margin-bottom:1.2rem;flex:1}}
-.plan-card li{{font-size:.85rem;padding:.3rem 0;color:var(--text-light)}}
-.plan-card li::before{{content:"\\2713 ";color:var(--primary);font-weight:700}}
-.plan-card .btn-cta{{width:100%;text-align:center;margin-top:auto}}
-.btn-cta-primary{{background:var(--primary);color:#fff}}
-.btn-cta-secondary{{background:var(--bg-alt);color:var(--text)}}
-.btn-cta-free{{background:var(--bg-alt);color:var(--text-light);font-size:.85rem;padding:.5rem 1rem}}
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;align-items:stretch}
+.plan-card{background:#fff;border-radius:var(--radius);padding:1.8rem;box-shadow:var(--shadow);display:flex;flex-direction:column;position:relative}
+.plan-card.featured{border:2px solid var(--primary);transform:scale(1.03)}
+.plan-card .badge{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:.2rem .8rem;border-radius:12px;font-size:.75rem;font-weight:700}
+.plan-card h3{font-size:1.1rem;margin-bottom:.5rem}
+.plan-card .price{font-size:2rem;font-weight:700;color:var(--primary-dark)}
+.plan-card .quota{font-size:.85rem;color:var(--text-light);margin-bottom:1rem}
+.plan-card ul{list-style:none;margin-bottom:1.2rem;flex:1}
+.plan-card li{font-size:.85rem;padding:.3rem 0;color:var(--text-light)}
+.plan-card li::before{content:"\\2713 ";color:var(--primary);font-weight:700}
+.plan-card .btn-cta{width:100%;text-align:center;margin-top:auto}
+.btn-cta-primary{background:var(--primary);color:#fff}
+.btn-cta-secondary{background:var(--bg-alt);color:var(--text)}
+.btn-cta-free{background:var(--bg-alt);color:var(--text-light);font-size:.85rem;padding:.5rem 1rem}
 /* Key banner & inputs */
-.key-banner{{display:none;background:#fff3cd;border:1px solid #ffc107;padding:.8rem 1rem;border-radius:var(--radius);margin-bottom:1rem;font-size:.9rem}}
-.pricing-form{{margin-top:1.5rem}}
-.pricing-form .inputs{{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}}
-.pricing-form label{{display:block;font-size:.82rem;font-weight:600;margin-bottom:.2rem}}
-.pricing-form input{{padding:.5rem;border:1px solid var(--border);border-radius:6px;width:220px;font-size:.88rem}}
-.pricing-form .btn{{font-size:.88rem;padding:.6rem 1.4rem}}
-.note{{font-size:.82rem;color:var(--text-light);margin-top:.4rem}}
-.note a{{text-decoration:underline}}
+.key-banner{display:none;background:#fff3cd;border:1px solid #ffc107;padding:.8rem 1rem;border-radius:var(--radius);margin-bottom:1rem;font-size:.9rem}
+.pricing-form{margin-top:1.5rem}
+.pricing-form .inputs{display:flex;gap:1rem;flex-wrap:wrap;margin-bottom:1rem}
+.pricing-form label{display:block;font-size:.82rem;font-weight:600;margin-bottom:.2rem}
+.pricing-form input{padding:.5rem;border:1px solid var(--border);border-radius:6px;width:220px;font-size:.88rem}
+.pricing-form .btn{font-size:.88rem;padding:.6rem 1.4rem}
+.note{font-size:.82rem;color:var(--text-light);margin-top:.4rem}
+.note a{text-decoration:underline}
 /* FAQ */
-.faq details{{background:#fff;border-radius:var(--radius);margin-bottom:.8rem;box-shadow:var(--shadow)}}
-.faq summary{{padding:1rem 1.2rem;font-weight:600;font-size:.95rem;cursor:pointer}}
-.faq summary:hover{{color:var(--primary)}}
-.faq p{{padding:0 1.2rem 1rem;font-size:.88rem;color:var(--text-light)}}
+.faq details{background:#fff;border-radius:var(--radius);margin-bottom:.8rem;box-shadow:var(--shadow)}
+.faq summary{padding:1rem 1.2rem;font-weight:600;font-size:.95rem;cursor:pointer}
+.faq summary:hover{color:var(--primary)}
+.faq p{padding:0 1.2rem 1rem;font-size:.88rem;color:var(--text-light)}
 /* Footer */
-footer{{background:var(--primary-dark);color:#cbd5e1;padding:2.5rem 0 1.5rem;margin-top:2rem}}
-footer .grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;margin-bottom:1.5rem}}
-footer h4{{color:#fff;font-size:.9rem;margin-bottom:.6rem}}
-footer a{{color:#cbd5e1;display:block;font-size:.85rem;padding:.15rem 0}}
-footer .copyright{{text-align:center;font-size:.78rem;color:#64748b;border-top:1px solid #2d4a6b;padding-top:1rem;margin-top:1rem}}
+footer{background:var(--primary-dark);color:#cbd5e1;padding:2.5rem 0 1.5rem;margin-top:2rem}
+footer .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem;margin-bottom:1.5rem}
+footer h4{color:#fff;font-size:.9rem;margin-bottom:.6rem}
+footer a{color:#cbd5e1;display:block;font-size:.85rem;padding:.15rem 0}
+footer .copyright{text-align:center;font-size:.78rem;color:#64748b;border-top:1px solid #2d4a6b;padding-top:1rem;margin-top:1rem}
 /* Responsive */
-@media(max-width:768px){{
-  .hero h1{{font-size:1.8rem}}
-  .steps{{grid-template-columns:1fr}}
-  .pricing-grid{{grid-template-columns:1fr}}
-  .plan-card.featured{{transform:none}}
-  footer .grid{{grid-template-columns:1fr}}
-  nav .links{{justify-content:center}}
-}}
+@media(max-width:768px){
+  .hero h1{font-size:1.8rem}
+  .steps{grid-template-columns:1fr}
+  .pricing-grid{grid-template-columns:1fr}
+  .plan-card.featured{transform:none}
+  footer .grid{grid-template-columns:1fr}
+  nav .links{justify-content:center}
+}
 </style></head>
 <body>
 
@@ -907,124 +907,124 @@ footer .copyright{{text-align:center;font-size:.78rem;color:#64748b;border-top:1
 
 <script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
 <script>
-async function loadBillingConfig() {{
-  try {{
+async function loadBillingConfig() {
+  try {
     const res = await fetch("/v1/billing/config");
     const cfg = await res.json();
-    if (cfg.client_token && cfg.environment !== "mock") {{
+    if (cfg.client_token && cfg.environment !== "mock") {
       Paddle.Environment.set(cfg.environment);
-      Paddle.Initialize({{ token: cfg.client_token }});
+      Paddle.Initialize({ token: cfg.client_token });
       window._paddleCfg = cfg;
-      try {{
-        Paddle.PricePreview({{
+      try {
+        Paddle.PricePreview({
           items: [
-            {{ priceId: cfg.price_ids.starter, quantity: 1 }},
-            {{ priceId: cfg.price_ids.pro, quantity: 1 }},
+            { priceId: cfg.price_ids.starter, quantity: 1 },
+            { priceId: cfg.price_ids.pro, quantity: 1 },
           ],
-        }}).then(function(result) {{
-          if (result && result.lineItems) {{
-            result.lineItems.forEach(function(item, i) {{
+        }).then(function(result) {
+          if (result && result.lineItems) {
+            result.lineItems.forEach(function(item, i) {
               var planKey = i === 0 ? "starter" : "pro";
               var total = item.formattedTotals && item.formattedTotals.total;
               if (!total) return;
               var priceCell = document.getElementById("price-" + planKey);
               if (priceCell) priceCell.textContent = total;
               var btn = document.getElementById("btn-" + planKey);
-              if (btn) {{
+              if (btn) {
                 var planName = planKey.charAt(0).toUpperCase() + planKey.slice(1);
                 btn.innerHTML = "Get " + planName + " &mdash; " + total + "/mo";
-              }}
-            }});
-          }}
-        }}).catch(function() {{ /* keep fallback */ }});
-      }} catch(pe) {{ /* keep fallback */ }}
-    }}
-  }} catch(e) {{ console.warn("billing config unavailable"); }}
-}}
-function showKeyBanner(key, plan) {{
+              }
+            });
+          }
+        }).catch(function() { /* keep fallback */ });
+      } catch(pe) { /* keep fallback */ }
+    }
+  } catch(e) { console.warn("billing config unavailable"); }
+}
+function showKeyBanner(key, plan) {
   const banner = document.getElementById("key-banner");
-  if (banner) {{
+  if (banner) {
     banner.innerHTML = "<strong>\\u26a0 Your API Key (copy it now, shown only once):</strong><br><code style=\\"font-size:1rem;color:#e63946\\">" + key + "</code><br><em>Plan: " + plan + "</em>";
     banner.style.display = "block";
-  }}
-}}
-async function openCheckout(plan) {{
+  }
+}
+async function openCheckout(plan) {
   const apiKeyInput = document.getElementById("api-key-input");
   const emailInput = document.getElementById("email-input");
   let apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
   const email = emailInput ? emailInput.value.trim() : "";
-  if (!apiKey) {{
-    if (!email) {{ alert("Enter your API key or email address first"); return; }}
-    try {{
-      const res = await fetch("/v1/demo-keys", {{
+  if (!apiKey) {
+    if (!email) { alert("Enter your API key or email address first"); return; }
+    try {
+      const res = await fetch("/v1/demo-keys", {
         method: "POST",
-        headers: {{ "Content-Type": "application/json" }},
-        body: JSON.stringify({{ email: email }}),
-      }});
-      if (!res.ok) {{ alert("Failed to create key"); return; }}
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email }),
+      });
+      if (!res.ok) { alert("Failed to create key"); return; }
       const data = await res.json();
       apiKey = data.api_key;
       if (apiKeyInput) apiKeyInput.value = apiKey;
       showKeyBanner(apiKey, data.plan);
-    }} catch (e) {{ alert("Failed to create key: network error"); return; }}
-  }}
-  if (!window._paddleCfg) {{ alert("Billing not configured"); return; }}
-  try {{
-    const res = await fetch("/v1/billing/checkout", {{
+    } catch (e) { alert("Failed to create key: network error"); return; }
+  }
+  if (!window._paddleCfg) { alert("Billing not configured"); return; }
+  try {
+    const res = await fetch("/v1/billing/checkout", {
       method: "POST",
-      headers: {{ "X-API-Key": apiKey, "Content-Type": "application/json" }},
-      body: JSON.stringify({{ plan: plan }}),
-    }});
-    if (!res.ok) {{
-      const err = await res.json().catch(() => ({{}}));
+      headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+      body: JSON.stringify({ plan: plan }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
       alert("Checkout failed: " + ((err.detail && err.detail.message) || res.status));
       return;
-    }}
+    }
     const data = await res.json();
-    const checkoutOpts = {{ transactionId: data.checkout_session_id }};
-    if (email) {{ checkoutOpts.customer = {{ email: email }}; }}
+    const checkoutOpts = { transactionId: data.checkout_session_id };
+    if (email) { checkoutOpts.customer = { email: email }; }
     Paddle.Checkout.open(checkoutOpts);
-  }} catch (e) {{ alert("Checkout failed: network error"); }}
-}}
-async function recoverKeys() {{
+  } catch (e) { alert("Checkout failed: network error"); }
+}
+async function recoverKeys() {
   const emailInput = document.getElementById("email-input");
   const email = emailInput ? emailInput.value.trim() : "";
-  if (!email) {{ alert("Enter your email address first"); return; }}
-  try {{
-    const res = await fetch("/v1/keys/recover", {{
+  if (!email) { alert("Enter your email address first"); return; }
+  try {
+    const res = await fetch("/v1/keys/recover", {
       method: "POST",
-      headers: {{ "Content-Type": "application/json" }},
-      body: JSON.stringify({{ email: email }}),
-    }});
-    if (res.status === 404) {{ alert("No keys found for this email address"); return; }}
-    if (!res.ok) {{ alert("Recovery failed: " + res.status); return; }}
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: email }),
+    });
+    if (res.status === 404) { alert("No keys found for this email address"); return; }
+    if (!res.ok) { alert("Recovery failed: " + res.status); return; }
     const data = await res.json();
-    if (data.keys && data.keys.length > 0) {{
+    if (data.keys && data.keys.length > 0) {
       const k = data.keys[0];
       const apiKeyInput = document.getElementById("api-key-input");
       if (apiKeyInput) apiKeyInput.value = k.key;
       showKeyBanner(k.key, k.plan + " (" + k.monthly_page_quota + " pages/mo)");
-    }}
-  }} catch (e) {{ alert("Recovery failed: network error"); }}
-}}
-async function openPortal() {{
+    }
+  } catch (e) { alert("Recovery failed: network error"); }
+}
+async function openPortal() {
   const apiKeyInput = document.getElementById("api-key-input");
   const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
-  if (!apiKey) {{ alert("Enter your API key first"); return; }}
-  try {{
-    const res = await fetch("/v1/billing/portal", {{
+  if (!apiKey) { alert("Enter your API key first"); return; }
+  try {
+    const res = await fetch("/v1/billing/portal", {
       method: "POST",
-      headers: {{ "X-API-Key": apiKey }},
-    }});
-    if (!res.ok) {{
-      const err = await res.json().catch(() => ({{}}));
+      headers: { "X-API-Key": apiKey },
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
       alert("Portal error: " + ((err.detail && err.detail.message) || res.status));
       return;
-    }}
+    }
     const data = await res.json();
     window.open(data.portal_url, "_blank");
-  }} catch (e) {{ alert("Portal error: network error"); }}
-}}
+  } catch (e) { alert("Portal error: network error"); }
+}
 loadBillingConfig();
 </script>
 </body></html>""")
