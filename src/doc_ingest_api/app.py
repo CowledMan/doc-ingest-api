@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import html
 import json
+import re
 import tempfile
 import time
 from collections.abc import Iterator, Mapping
@@ -41,6 +43,8 @@ from .quotas import ensure_monthly_period, record_page_usage
 from .rate_limit import InMemoryRateLimiter, RateLimiter
 from .security import find_api_key, generate_api_key, hash_api_key
 from .tasks import build_task_queue
+
+_EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
 
 @dataclass(frozen=True)
@@ -492,6 +496,63 @@ def create_app(
             "monthly_page_quota": subscription.monthly_page_quota,
         }
 
+    @router.post("/v1/keys/recover", tags=["demo"])
+    async def recover_keys(
+        request: Request,
+        session: Annotated[Session, Depends(_get_db)],
+    ) -> dict[str, Any]:
+        """Recover lost API keys by email: issue new keys, deactivate old ones.
+
+        Security tradeoff: returns 404 uniformly for unknown emails. An
+        attacker can only generate new sessions, never recover old keys.
+        """
+        state = _app_state(request)
+        try:
+            body = await request.json()
+        except Exception:
+            raise _api_error(422, "invalid_email", "Provide a valid email address") from None
+        email = body.get("email") if isinstance(body, dict) else None
+        if not email or not isinstance(email, str) or not _EMAIL_RE.match(email):
+            raise _api_error(422, "invalid_email", "Provide a valid email address")
+
+        from sqlalchemy import select
+
+        with state.session_factory.begin() as db:
+            rows = db.execute(
+                select(ApiKey).where(
+                    ApiKey.owner_email == email,
+                    ApiKey.active == True,  # noqa: E712
+                )
+            ).scalars().all()
+            if not rows:
+                raise _api_error(404, "email_not_found", "No active keys found for this email")
+
+            recovered: list[dict[str, Any]] = []
+            for old_key in rows:
+                raw_key = generate_api_key()
+                new_key = ApiKey(
+                    name=old_key.name,
+                    key_hash=hash_api_key(raw_key),
+                    monthly_page_quota=old_key.monthly_page_quota,
+                    used_pages=0,
+                    active=True,
+                    plan=old_key.plan,
+                    expires_at=old_key.expires_at,
+                    paddle_customer_id=old_key.paddle_customer_id,
+                    owner_email=email,
+                )
+                db.add(new_key)
+                old_key.active = False
+                db.flush()
+                recovered.append(
+                    {
+                        "key": raw_key,
+                        "plan": new_key.plan,
+                        "monthly_page_quota": new_key.monthly_page_quota,
+                    }
+                )
+        return {"keys": recovered}
+
     @router.post("/v1/billing/portal", tags=["billing"])
     def create_portal(
         request: Request,
@@ -643,14 +704,46 @@ async function loadBillingConfig() {{
     }}
   }} catch(e) {{ console.warn("billing config unavailable"); }}
 }}
-async function openCheckout(plan) {{
-  if (!window._paddleCfg) {{ alert("Billing not configured"); return; }}
-  const apiKeyInput = document.getElementById("api-key-input");
-  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
-  if (!apiKey.startsWith("dip_")) {{
-    alert("Enter your API key (dip_...) first");
-    return;
+function showKeyBanner(key, plan) {{
+  const banner = document.getElementById("key-banner");
+  if (banner) {{
+    banner.innerHTML = "<strong>\u26a0 Your API Key (copy it now, shown only once):</strong><br><code style=\"font-size:1rem;color:#e63946\">" + key + "</code><br><em>Plan: " + plan + "</em>";
+    banner.style.display = "block";
   }}
+}}
+async function openCheckout(plan) {{
+  const apiKeyInput = document.getElementById("api-key-input");
+  const emailInput = document.getElementById("email-input");
+  let apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
+  const email = emailInput ? emailInput.value.trim() : "";
+
+  if (!apiKey) {{
+    if (!email) {{
+      alert("Enter your API key or email address first");
+      return;
+    }}
+    // Create a new demo key with the email
+    try {{
+      const res = await fetch("/v1/demo-keys", {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify({{ email: email }}),
+      }});
+      if (!res.ok) {{
+        alert("Failed to create key");
+        return;
+      }}
+      const data = await res.json();
+      apiKey = data.api_key;
+      if (apiKeyInput) apiKeyInput.value = apiKey;
+      showKeyBanner(apiKey, data.plan);
+    }} catch (e) {{
+      alert("Failed to create key: network error");
+      return;
+    }}
+  }}
+
+  if (!window._paddleCfg) {{ alert("Billing not configured"); return; }}
   try {{
     const res = await fetch("/v1/billing/checkout", {{
       method: "POST",
@@ -663,23 +756,72 @@ async function openCheckout(plan) {{
       return;
     }}
     const data = await res.json();
-    Paddle.Checkout.open({{ transactionId: data.checkout_session_id }});
+    const checkoutOpts = {{ transactionId: data.checkout_session_id }};
+    if (email) {{
+      checkoutOpts.customer = {{ email: email }};
+    }}
+    Paddle.Checkout.open(checkoutOpts);
   }} catch (e) {{
     alert("Checkout failed: network error");
+  }}
+}}
+async function recoverKeys() {{
+  const emailInput = document.getElementById("email-input");
+  const email = emailInput ? emailInput.value.trim() : "";
+  if (!email) {{
+    alert("Enter your email address first");
+    return;
+  }}
+  try {{
+    const res = await fetch("/v1/keys/recover", {{
+      method: "POST",
+      headers: {{ "Content-Type": "application/json" }},
+      body: JSON.stringify({{ email: email }}),
+    }});
+    if (res.status === 404) {{
+      alert("No keys found for this email address");
+      return;
+    }}
+    if (!res.ok) {{
+      alert("Recovery failed: " + res.status);
+      return;
+    }}
+    const data = await res.json();
+    if (data.keys && data.keys.length > 0) {{
+      const k = data.keys[0];
+      const apiKeyInput = document.getElementById("api-key-input");
+      if (apiKeyInput) apiKeyInput.value = k.key;
+      showKeyBanner(k.key, k.plan + " (" + k.monthly_page_quota + " pages/mo)");
+    }}
+  }} catch (e) {{
+    alert("Recovery failed: network error");
   }}
 }}
 loadBillingConfig();
 </script>
 
 <div style="margin-top:1rem">
-  <label style="font-size:.85rem">Your API key name or demo key:</label><br>
-  <input id="api-key-input" type="text" placeholder="dip_... or key name"
-    style="padding:.4rem;border:1px solid #ccc;border-radius:4px;width:240px">
+  <div id="key-banner" style="display:none;background:#fff3cd;border:1px solid #ffc107;padding:.8rem;border-radius:6px;margin-bottom:.8rem;font-size:.9rem"></div>
+  <div style="display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end">
+    <div>
+      <label style="font-size:.85rem">Your API key:</label><br>
+      <input id="api-key-input" type="text" placeholder="dip_..."
+        style="padding:.4rem;border:1px solid #ccc;border-radius:4px;width:240px">
+    </div>
+    <div>
+      <label style="font-size:.85rem">Email (for key recovery):</label><br>
+      <input id="email-input" type="email" placeholder="you@example.com"
+        style="padding:.4rem;border:1px solid #ccc;border-radius:4px;width:220px">
+    </div>
+  </div>
   <div style="margin-top:.8rem">
     <button id="btn-starter" onclick="openCheckout('starter')" style="background:#457b9d;color:#fff;border:none;padding:.6rem 1.5rem;border-radius:6px;cursor:pointer;font-size:.9rem">Get Starter — $19/mo</button>
     <button id="btn-pro" onclick="openCheckout('pro')" style="background:#1d3557;color:#fff;border:none;padding:.6rem 1.5rem;border-radius:6px;cursor:pointer;font-size:.9rem;margin-left:.5rem">Get Pro — $99/mo</button>
   </div>
-  <p class="note" style="margin-top:.5rem">After checkout, your API key plan is upgraded automatically via webhook.</p>
+  <p class="note" style="margin-top:.5rem">
+    Lost your key? <a href="#" onclick="recoverKeys();return false;" style="text-decoration:underline">Recover my Key</a> using your email.
+  </p>
+  <p class="note" style="margin-top:.3rem">After checkout, your API key plan is upgraded automatically via webhook.</p>
 </div>
 <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85rem;color:#888">
   <a href="/terms">Terms &amp; Conditions</a> &middot;
@@ -710,6 +852,7 @@ automatically within a minute.</p>
 <p class="note">Verify it any time:</p>
 <pre><code>curl https://tomdocs.com/v1/billing/subscription \
   -H "X-API-Key: dip_..."</code></pre>
+<p>Lost your API key? <a href="/">Go back to the homepage</a> and use your registered email to recover it.</p>
 <p><a href="/">Back to home</a> &middot; <a href="/docs">API reference</a></p>
 <div style="margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85rem;color:#888">
   <a href="/terms">Terms &amp; Conditions</a> &middot;
@@ -723,12 +866,21 @@ automatically within a minute.</p>
     # --- Demo sandbox ---
 
     @router.post("/v1/demo-keys", tags=["demo"])
-    def create_demo_key(
+    async def create_demo_key(
         request: Request,
         session: Annotated[Session, Depends(_get_db)],
     ) -> dict[str, Any]:
-        """Create a no-signup demo API key (20 pages, 24-hour expiry)."""
+        """Create a no-signup demo API key (20 pages, 24-hour expiry).
+
+        Optional ``email`` in the body binds the key to an owner for recovery.
+        """
         state = _app_state(request)
+        body: dict[str, Any] = {}
+        with contextlib.suppress(Exception):
+            body = await request.json()
+        email = body.get("email") if isinstance(body, dict) else None
+        if email is not None and (not isinstance(email, str) or not _EMAIL_RE.match(email)):
+            raise _api_error(422, "invalid_email", "Provide a valid email address")
         raw_key = generate_api_key()
         now = datetime.now(UTC)
         expires = now + timedelta(hours=24)
@@ -742,6 +894,7 @@ automatically within a minute.</p>
                     active=True,
                     plan="demo",
                     expires_at=expires,
+                    owner_email=email,
                 )
             )
         return {

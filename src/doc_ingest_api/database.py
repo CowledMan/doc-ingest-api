@@ -38,6 +38,7 @@ class Database:
         existing = {col["name"] for col in inspector.get_columns("api_keys")}
         migrations = [
             ("paddle_customer_id", "VARCHAR(64)"),
+            ("owner_email", "VARCHAR(255)"),
         ]
         with self.engine.begin() as conn:
             for column_name, column_type in migrations:
