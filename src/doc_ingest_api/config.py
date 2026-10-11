@@ -56,7 +56,7 @@ class Settings(BaseSettings):
 
     # Pricing plans rendered on the landing page; JSON list of plan objects.
     pricing_plans_json: str = (
-        '[{"name":"Free","monthly_pages":100,"price_usd":0},'
+        '[{"name":"Free","monthly_pages":5,"price_usd":0},'
         '{"name":"Starter","monthly_pages":500,"price_usd":19},'
         '{"name":"Pro","monthly_pages":5000,"price_usd":99}]'
     )

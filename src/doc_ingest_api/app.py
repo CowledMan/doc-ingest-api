@@ -421,7 +421,7 @@ def create_app(
             custom = event_data.get("custom_data") or {}
             api_key_id = custom.get("api_key_id")
 
-            plan_quotas = {"free": 100, "starter": 500, "pro": 5000}
+            plan_quotas = {"free": 5, "starter": 500, "pro": 5000}
             paddle_customer_id = event_data.get("customer_id", "")
             if event_type in ("subscription.created", "subscription.updated", "subscription.canceled") and api_key_id:
                 if event_type == "subscription.canceled":
@@ -432,7 +432,7 @@ def create_app(
                     if items:
                         price_custom = items[0].get("price", {}).get("custom_data") or {}
                         plan = str(price_custom.get("plan", "free"))
-                quota = plan_quotas.get(plan, 100)
+                quota = plan_quotas.get(plan, 5)
                 with state.session_factory.begin() as db:
                     key = db.get(ApiKey, int(api_key_id))
                     if key is not None:
