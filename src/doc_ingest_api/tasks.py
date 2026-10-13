@@ -15,13 +15,15 @@ from fastapi import BackgroundTasks
 from sqlalchemy.orm import Session, sessionmaker
 
 from .config import Settings
-from .models import ParseJob
-from .parsers import (
+from .exceptions import (
     OcrNotConfiguredError,
     ParserError,
     ParseResult,
-    ParserRouter,
     ParserTimeoutError,
+)
+from .models import ParseJob
+from .parsers import (
+    ParserRouter,
     create_parser_router,
 )
 

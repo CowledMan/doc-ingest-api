@@ -9,31 +9,11 @@ import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from .config import Settings
-
-
-class ParserError(RuntimeError):
-    """Raised when a parser cannot produce a usable Markdown result."""
-
-
-class ParserTimeoutError(ParserError):
-    """Raised when parser execution exceeds the configured timeout."""
-
-
-class OcrNotConfiguredError(ParserError):
-    """Raised when a scanned document reaches OCR but no OCR key is present."""
-
-
-@dataclass(frozen=True)
-class ParseResult:
-    """A single parser result and its routing metadata."""
-
-    markdown: str
-    confidence: float
-    metadata: dict[str, Any]
-    engine_used: str
+from .exceptions import OcrNotConfiguredError, ParserError, ParseResult, ParserTimeoutError
+from .ocr import AliyunOcrParser
 
 
 @runtime_checkable
@@ -96,21 +76,6 @@ class SubprocessParser:
 
 
 @dataclass(frozen=True)
-class AliyunOcrStubParser:
-    """Stub for the pay-as-you-go Aliyun OCR route."""
-
-    api_key: str = ""
-
-    def parse(self, file: Path) -> ParseResult:
-        """Reject unconfigured OCR and keep provider implementation out of M1 batch 1."""
-        if not self.api_key:
-            raise OcrNotConfiguredError(
-                "OCR is required for this document, but ALIYUN_OCR_KEY is not configured"
-            )
-        raise ParserError("Aliyun OCR adapter is not implemented in this batch")
-
-
-@dataclass(frozen=True)
 class ParserRouter:
     """Route documents by category, then by confidence threshold."""
 
@@ -168,7 +133,12 @@ def create_parser_router(settings: Settings) -> ParserRouter:
                 python_executable=settings.parser_docling_python or default_python,
                 timeout_seconds=settings.parser_timeout_seconds,
             ),
-            "ocr": AliyunOcrStubParser(api_key=settings.aliyun_ocr_key),
+            "ocr": AliyunOcrParser(
+                access_key_id=settings.aliyun_ocr_access_key_id,
+                access_key_secret=settings.aliyun_ocr_access_key_secret,
+                endpoint=settings.aliyun_ocr_endpoint,
+                timeout_seconds=settings.parser_timeout_seconds,
+            ),
         },
         confidence_threshold=settings.confidence_threshold,
     )

@@ -14,10 +14,10 @@ from fastapi.testclient import TestClient
 from doc_ingest_api.app import create_app
 from doc_ingest_api.config import Settings
 from doc_ingest_api.database import Database, create_database
+from doc_ingest_api.exceptions import OcrNotConfiguredError
 from doc_ingest_api.models import ApiKey
+from doc_ingest_api.ocr import AliyunOcrParser
 from doc_ingest_api.parsers import (
-    AliyunOcrStubParser,
-    OcrNotConfiguredError,
     ParserError,
     ParseResult,
     ParserRouter,
@@ -165,7 +165,7 @@ def test_scanned_document_reports_missing_ocr_configuration() -> None:
     database = create_database(settings.database_url)
     database.create_all()
     router = ParserRouter(
-        parsers={"ocr": AliyunOcrStubParser(api_key="")},
+        parsers={"ocr": AliyunOcrParser()},
         confidence_threshold=settings.confidence_threshold,
     )
     app = create_app(

@@ -11,6 +11,7 @@ dependencies = [
     "markitdown[pdf]==0.1.8",
     "fastapi>=0.143.0",
     "httpx>=0.28.1",
+    "pypdfium2>=5.14",
     "pydantic-settings>=2.15.0",
     "python-multipart>=0.0.32",
     "sqlalchemy>=2.1.4",
@@ -60,7 +61,7 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 
 [[tool.mypy.overrides]]
-module = ["anydoc.*", "markitdown.*", "docling.*", "celery.*"]
+module = ["anydoc.*", "markitdown.*", "docling.*", "celery.*", "pypdfium2.*"]
 ignore_missing_imports = true
 follow_imports = "skip"
 

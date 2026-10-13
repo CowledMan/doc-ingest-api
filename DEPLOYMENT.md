@@ -16,7 +16,9 @@ The API is deployed on Render at `https://doc-ingest-api.onrender.com`.
 | `PADDLE_CLIENT_TOKEN` | `test_...` / `live_...` | Paddle.js token (public) |
 | `PADDLE_PRICE_STARTER` | `pri_...` | Starter price ID |
 | `PADDLE_PRICE_PRO` | `pri_...` | Pro price ID |
-| `ALIYUN_OCR_KEY` | (empty) | OCR key (stub in M1) |
+| `ALIYUN_OCR_ACCESS_KEY_ID` | (empty) | Aliyun OCR AccessKey ID |
+| `ALIYUN_OCR_ACCESS_KEY_SECRET` | (empty) | Aliyun OCR AccessKey Secret |
+| `ALIYUN_OCR_ENDPOINT` | `ocr-api.cn-hangzhou.aliyuncs.com` | Aliyun OCR API endpoint |
 | `RATE_LIMIT_IP_PER_HOUR` | `50` | IP-level rate limit |
 | `RATE_LIMIT_KEY_PER_MINUTE` | `60` | API-key-level rate limit |
 

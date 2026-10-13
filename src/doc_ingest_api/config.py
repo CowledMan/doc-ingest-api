@@ -23,8 +23,9 @@ class Settings(BaseSettings):
     webhook_url: str | None = None
     webhook_timeout_seconds: float = 10.0
 
-    aliyun_ocr_key: str = ""
-    aliyun_ocr_endpoint: str = ""
+    aliyun_ocr_access_key_id: str = ""
+    aliyun_ocr_access_key_secret: str = ""
+    aliyun_ocr_endpoint: str = "ocr-api.cn-hangzhou.aliyuncs.com"
     stripe_api_key: str = ""
     stripe_webhook_secret: str = ""
 

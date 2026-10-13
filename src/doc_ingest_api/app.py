@@ -30,13 +30,15 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from .billing import create_billing_provider
 from .config import Settings
-from .models import ApiKey, ParseJob
-from .parsers import (
+from .exceptions import (
     OcrNotConfiguredError,
     ParserError,
     ParseResult,
-    ParserRouter,
     ParserTimeoutError,
+)
+from .models import ApiKey, ParseJob
+from .parsers import (
+    ParserRouter,
     create_parser_router,
 )
 from .quotas import ensure_monthly_period, record_page_usage
