@@ -63,7 +63,13 @@ def _resolve_driver(database_url: str) -> str:
 def create_database(database_url: str) -> Database:
     """Create a database engine and session factory for the given URL."""
     database_url = _resolve_driver(database_url)
-    connect_args = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
+    connect_args: dict[str, object] = {}
+    if database_url.startswith("sqlite"):
+        connect_args["check_same_thread"] = False
+    elif database_url.startswith("postgresql+psycopg"):
+        # Disable psycopg3 server-side prepared statements for PgBouncer
+        # transaction-mode compatibility (e.g. Neon pooler endpoints).
+        connect_args["prepare_threshold"] = None
     poolclass = StaticPool if database_url in {"sqlite://", "sqlite:///:memory:"} else None
     engine = create_engine(database_url, connect_args=connect_args, poolclass=poolclass)
     return Database(engine=engine, session_factory=sessionmaker(bind=engine, expire_on_commit=False))
