@@ -1,4 +1,4 @@
-"""FastAPI gateway for document parsing."""
+﻿"""FastAPI gateway for document parsing."""
 
 from __future__ import annotations
 
@@ -892,7 +892,6 @@ footer .copyright{text-align:center;font-size:.78rem;color:#64748b;border-top:1p
         <h4>Product</h4>
         <a href="#pricing">Pricing</a>
         <a href="/docs">Documentation</a>
-        <a href="#">Status</a>
       </div>
       <div>
         <h4>Legal</h4>
@@ -1250,7 +1249,7 @@ print(result.markdown)</code></pre>
 
 <footer><div class="container">
   <div class="grid">
-    <div><h4>Product</h4><a href="/#pricing">Pricing</a><a href="/docs/swagger">Interactive Docs</a><a href="#">Status</a></div>
+    <div><h4>Product</h4><a href="/#pricing">Pricing</a><a href="/docs/swagger">Interactive Docs</a></div>
     <div><h4>Legal</h4><a href="/terms">Terms</a><a href="/refund">Refund Policy</a><a href="/privacy">Privacy Policy</a></div>
     <div><h4>Contact</h4><a href="mailto:support@tomdocs.com">support@tomdocs.com</a><a href="https://github.com/user/doc-ingest-api">GitHub</a></div>
   </div>
