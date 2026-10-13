@@ -55,6 +55,12 @@ In the Render dashboard → Environment → set:
 DATABASE_URL=postgresql://user:pass@host.region.aws.neon.tech/dbname?sslmode=require
 ```
 
+
+> **Note:** Neon free tier pauses after ~5 minutes of inactivity.
+> The first request after a cold start may take 1-2 seconds while
+> the compute instance resumes; the app retries transient connection
+> failures and returns 503 if the database is still unavailable.
+
 ### 4. Deploy
 
 The SQLAlchemy models are dialect-agnostic (no SQLite-specific code).

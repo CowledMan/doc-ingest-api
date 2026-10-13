@@ -1,4 +1,4 @@
-﻿"""FastAPI gateway for document parsing."""
+"""FastAPI gateway for document parsing."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ from fastapi import (
     UploadFile,
 )
 from fastapi.responses import FileResponse, HTMLResponse
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
 from .billing import create_billing_provider
@@ -73,14 +74,29 @@ def _session_factory(request: Request) -> sessionmaker[Session]:
 def _get_db(
     session_factory: Annotated[sessionmaker[Session], Depends(_session_factory)],
 ) -> Iterator[Session]:
-    """Yield a request-scoped database session."""
-    session = session_factory()
+    """Yield a request-scoped database session with cold-start retry."""
+    max_retries = 2
+    delay = 1.0
+    last_error: OperationalError | None = None
+    session: Session | None = None
+    for attempt in range(max_retries):
+        try:
+            session = session_factory()
+            break
+        except OperationalError as exc:
+            last_error = exc
+            if attempt < max_retries - 1:
+                time.sleep(delay)
+    if session is None:
+        raise _api_error(
+            503,
+            "service_unavailable",
+            "Database temporarily unavailable; please retry",
+        ) from last_error
     try:
         yield session
     finally:
         session.close()
-
-
 def _get_api_key(
     session: Annotated[Session, Depends(_get_db)],
     x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
