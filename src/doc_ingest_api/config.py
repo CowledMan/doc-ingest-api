@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     aliyun_ocr_access_key_id: str = ""
     aliyun_ocr_access_key_secret: str = ""
     aliyun_ocr_endpoint: str = "ocr-api.cn-hangzhou.aliyuncs.com"
+    # Mistral OCR (preferred for international documents; falls back to Aliyun).
+    mistral_api_key: str = ""
+    mistral_ocr_model: str = "mistral-ocr-latest"
+    mistral_ocr_endpoint: str = "https://api.mistral.ai/v1/ocr"
     stripe_api_key: str = ""
     stripe_webhook_secret: str = ""
 
@@ -61,3 +65,4 @@ class Settings(BaseSettings):
         '{"name":"Starter","monthly_pages":500,"price_usd":19},'
         '{"name":"Pro","monthly_pages":5000,"price_usd":99}]'
     )
+

@@ -13,6 +13,7 @@ from typing import Protocol, runtime_checkable
 
 from .config import Settings
 from .exceptions import OcrNotConfiguredError, ParserError, ParseResult, ParserTimeoutError
+from .mistral_ocr import MistralOcrParser
 from .ocr import AliyunOcrParser
 
 
@@ -133,16 +134,27 @@ def create_parser_router(settings: Settings) -> ParserRouter:
                 python_executable=settings.parser_docling_python or default_python,
                 timeout_seconds=settings.parser_timeout_seconds,
             ),
-            "ocr": AliyunOcrParser(
-                access_key_id=settings.aliyun_ocr_access_key_id,
-                access_key_secret=settings.aliyun_ocr_access_key_secret,
-                endpoint=settings.aliyun_ocr_endpoint,
-                timeout_seconds=settings.parser_timeout_seconds,
-            ),
+            "ocr": _build_ocr_parser(settings),
         },
         confidence_threshold=settings.confidence_threshold,
     )
 
+
+def _build_ocr_parser(settings: Settings) -> ParserProtocol:
+    """Prefer Mistral OCR when configured; fall back to Aliyun OCR."""
+    if settings.mistral_api_key:
+        return MistralOcrParser(
+            api_key=settings.mistral_api_key,
+            model=settings.mistral_ocr_model,
+            endpoint=settings.mistral_ocr_endpoint,
+            timeout_seconds=settings.parser_timeout_seconds,
+        )
+    return AliyunOcrParser(
+        access_key_id=settings.aliyun_ocr_access_key_id,
+        access_key_secret=settings.aliyun_ocr_access_key_secret,
+        endpoint=settings.aliyun_ocr_endpoint,
+        timeout_seconds=settings.parser_timeout_seconds,
+    )
 
 def _subprocess_environment() -> dict[str, str]:
     """Create a child environment that can import this package from source."""
@@ -155,3 +167,4 @@ def _subprocess_environment() -> dict[str, str]:
             f"{source_root}{os.pathsep}{current}" if current else str(source_root)
         )
     return environment
+
