@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from .models import Base
+from .models import ApiKey, Base
 
 
 @dataclass(frozen=True)
@@ -23,6 +23,7 @@ class Database:
         """Create all model tables and run lightweight migrations."""
         Base.metadata.create_all(self.engine)
         self._migrate_add_columns()
+        self._backfill_free_key_quotas()
 
     def _migrate_add_columns(self) -> None:
         """Add columns that are missing from pre-existing tables.
@@ -56,6 +57,43 @@ class Database:
                     conn.execute(
                         text("UPDATE parse_jobs SET pages_used = 0 WHERE pages_used IS NULL")
                     )
+                    conn.execute(
+                        text("UPDATE parse_jobs SET pages_used = 0 WHERE pages_used IS NULL")
+                    )
+
+    def _backfill_free_key_quotas(self) -> None:
+        """Keep the free allowance on only the newest active free key per user.
+
+        Keys created before the one-free-allowance rule shipped may all carry
+        the free quota; this idempotent backfill zeroes the extra ones so a
+        user never holds more than one active 5-page free key.
+        """
+        try:
+            with self.session_factory.begin() as session:
+                rows = (
+                    session.execute(
+                        select(ApiKey)
+                        .where(
+                            ApiKey.active == True,  # noqa: E712
+                            ApiKey.plan == "free",
+                            ApiKey.owner_user_id.is_not(None),
+                        )
+                        .order_by(ApiKey.owner_user_id, ApiKey.created_at.desc())
+                    )
+                    .scalars()
+                    .all()
+                )
+                seen_users: set[int] = set()
+                for key in rows:
+                    if key.owner_user_id is None:
+                        continue
+                    if key.owner_user_id not in seen_users:
+                        seen_users.add(key.owner_user_id)
+                        continue
+                    if key.monthly_page_quota != 0:
+                        key.monthly_page_quota = 0
+        except Exception:
+            return
 
 
 def _resolve_driver(database_url: str) -> str:
