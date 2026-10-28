@@ -126,3 +126,24 @@ class TestDashboardSubpages:
             assert res.status_code == 200, path
             assert marker in res.text, path
             assert 'class="tabs"' in res.text
+
+
+class TestKeyLimit:
+    def test_active_key_limit(self, client: TestClient) -> None:
+        _register(client)
+        for i in range(3):
+            res = client.post("/api/keys", json={"name": f"key-{i}"})
+            assert res.status_code == 200, i
+        res = client.post("/api/keys", json={"name": "key-overflow"})
+        assert res.status_code == 409
+        assert res.json()["detail"]["code"] == "key_limit_reached"
+
+    def test_revoked_keys_do_not_count(self, client: TestClient) -> None:
+        _register(client)
+        for i in range(3):
+            assert client.post("/api/keys", json={"name": f"key-{i}"}).status_code == 200
+        keys = client.get("/api/keys").json()["keys"]
+        revoke_id = keys[0]["id"]
+        assert client.post(f"/api/keys/{revoke_id}/revoke").status_code == 200
+        res = client.post("/api/keys", json={"name": "after-revoke"})
+        assert res.status_code == 200

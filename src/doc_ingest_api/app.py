@@ -342,7 +342,7 @@ async function loadKeys() {
 async function createKey() {
   const name = document.getElementById("key-name").value.trim() || "default";
   const res = await fetch("/api/keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name }) });
-  if (!res.ok) { alert("Failed to create key"); return; }
+  if (!res.ok) { const err = await res.json().catch(() => ({})); alert((err.detail && err.detail.message) || "Failed to create key"); return; }
   const data = await res.json();
   const banner = document.getElementById("key-banner");
   banner.innerHTML = "<strong>&#9888; Your new API key (copy it now &mdash; shown only once):</strong><br><code style=\\"font-size:1rem;color:#c1121f\\">" + data.api_key + "</code>";
@@ -456,6 +456,8 @@ loadAccount();
 
 
 _EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
+
+MAX_ACTIVE_KEYS_PER_USER = 3
 
 
 @dataclass(frozen=True)
@@ -1866,6 +1868,8 @@ automatically within a minute.</p>
         """Create a new free-plan API key for the signed-in user.
 
         The raw key is returned exactly once; only its hash is stored.
+        Each user may hold a limited number of active keys to prevent
+        quota abuse; revoke an old key first when the limit is reached.
         """
         user = _require_user(request)
         try:
@@ -1873,6 +1877,22 @@ automatically within a minute.</p>
         except Exception:
             body = {}
         name = str((body or {}).get("name") or "default")
+        with session_factory.begin() as db:
+            active_count = len(
+                db.scalars(
+                    select(ApiKey.id).where(
+                        ApiKey.owner_user_id == user.id,
+                        ApiKey.active == True,  # noqa: E712
+                    )
+                ).all()
+            )
+            if active_count >= MAX_ACTIVE_KEYS_PER_USER:
+                raise _api_error(
+                    409,
+                    "key_limit_reached",
+                    f"Active API key limit reached ({MAX_ACTIVE_KEYS_PER_USER}). "
+                    "Revoke an unused key first.",
+                )
         result = create_user_api_key(session_factory, user_id=user.id, name=name)
         return {
             "api_key": result["api_key"],
