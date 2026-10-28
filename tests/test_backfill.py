@@ -14,7 +14,7 @@ def _add_key(database: Any, name: str, key_hash: str, **kwargs: Any) -> None:
         session.add(ApiKey(name=name, key_hash=key_hash, **kwargs))
 
 
-def test_backfill_keeps_only_newest_free_key() -> None:
+def test_backfill_keeps_only_oldest_free_key() -> None:
     database = create_database("sqlite://")
     database.create_all()
     _add_key(database, "old", "a" * 64, monthly_page_quota=5, plan="free", owner_user_id=1)
@@ -23,7 +23,7 @@ def test_backfill_keeps_only_newest_free_key() -> None:
     database._backfill_free_key_quotas()
     with database.session_factory() as session:
         quotas = {k.name: k.monthly_page_quota for k in session.query(ApiKey).all()}
-    assert quotas == {"old": 0, "new": 5}
+    assert quotas == {"old": 5, "new": 0}
 
 
 def test_backfill_is_idempotent() -> None:

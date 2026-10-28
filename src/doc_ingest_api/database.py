@@ -62,7 +62,7 @@ class Database:
                     )
 
     def _backfill_free_key_quotas(self) -> None:
-        """Keep the free allowance on only the newest active free key per user.
+        """Keep the free allowance on only the oldest active free key per user.
 
         Keys created before the one-free-allowance rule shipped may all carry
         the free quota; this idempotent backfill zeroes the extra ones so a
@@ -78,7 +78,7 @@ class Database:
                             ApiKey.plan == "free",
                             ApiKey.owner_user_id.is_not(None),
                         )
-                        .order_by(ApiKey.owner_user_id, ApiKey.created_at.desc())
+                        .order_by(ApiKey.owner_user_id, ApiKey.created_at)
                     )
                     .scalars()
                     .all()
