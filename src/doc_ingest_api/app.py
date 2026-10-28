@@ -149,16 +149,16 @@ async function submitForm(ev) {
 </script>
 </body></html>"""
 
-DASH_HTML = r"""<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Dashboard | DoIngest</title>
-<style>
+_DASH_CSS = """
 :root{--primary:#457b9d;--primary-dark:#1d3557;--bg:#f8f9fa;--bg-alt:#e9ecef;--text:#1a1a2e;--text-light:#555;--border:#dee2e6;--radius:8px;--shadow:0 2px 8px rgba(0,0,0,.08)}
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Inter',system-ui,sans-serif;color:var(--text);background:var(--bg);line-height:1.6}
-nav{background:var(--primary-dark);padding:.8rem 1.5rem;display:flex;justify-content:space-between;align-items:center}
+nav{background:var(--primary-dark);padding:.8rem 1.5rem;display:flex;justify-content:space-between;align-items:center;gap:1rem;flex-wrap:wrap}
 nav .brand{color:#fff;font-weight:700;font-size:1.1rem;text-decoration:none}
+nav .tabs{display:flex;gap:.3rem;flex-wrap:wrap}
+nav .tabs a{color:#cbd5e1;text-decoration:none;padding:.35rem .8rem;border-radius:6px;font-size:.88rem}
+nav .tabs a:hover{background:rgba(255,255,255,.1)}
+nav .tabs a.active{background:var(--primary);color:#fff}
 nav button{background:transparent;border:1px solid #64748b;color:#cbd5e1;padding:.35rem .9rem;border-radius:6px;cursor:pointer;font-size:.85rem}
 .wrap{max-width:960px;margin:2rem auto;padding:0 1.5rem}
 .card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.5rem;margin-bottom:1.5rem}
@@ -170,7 +170,7 @@ th,td{border:1px solid var(--border);padding:.5rem .7rem;text-align:left}
 th{background:var(--bg-alt)}
 .badge{display:inline-block;padding:.1rem .5rem;border-radius:10px;font-size:.75rem;font-weight:700}
 .b-free{background:#e0f2fe;color:#075985}.b-starter{background:#dcfce7;color:#166534}.b-pro{background:#fef9c3;color:#854d0e}.b-demo{background:#f1f5f9;color:#475569}
-.b-inactive{background:#fee2e2;color:#991b1b}
+.b-inactive{background:#fee2e2;color:#991b1b}.b-succeeded{background:#dcfce7;color:#166534}.b-failed{background:#fee2e2;color:#991b1b}.b-queued{background:#fef9c3;color:#854d0e}.b-processing{background:#e0f2fe;color:#075985}
 .btn{display:inline-block;padding:.55rem 1.2rem;border:none;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;text-decoration:none}
 .btn-primary{background:var(--primary);color:#fff}
 .btn-ghost{background:var(--bg-alt);color:var(--text)}
@@ -185,24 +185,68 @@ input,select{padding:.5rem;border:1px solid var(--border);border-radius:6px;font
 footer{text-align:center;padding:1.5rem;font-size:.78rem;color:#888}
 footer a{color:#888;margin:0 .5rem}
 .msg{font-size:.85rem;min-height:1em;margin-top:.5rem}.msg.err{color:#c1121f}.msg.ok{color:#2a9d34}
-</style></head>
-<body>
-<nav><a class="brand" href="/">DoIngest</a><button onclick="logout()">Log out</button></nav>
-<div class="wrap">
-  <h1>Dashboard</h1>
-  <p class="sub">Manage your API keys, usage, and subscription.</p>
-  <div class="banner" id="key-banner"></div>
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-bottom:1.5rem}
+.stat{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.1rem 1.3rem}
+.stat .num{font-size:1.6rem;font-weight:700;color:var(--primary-dark);font-variant-numeric:tabular-nums}
+.stat .lbl{font-size:.8rem;color:var(--text-light)}
+.chart{display:flex;align-items:flex-end;gap:2px;height:180px;margin:1rem 0 .3rem}
+.chart .bar{flex:1;background:var(--primary);border-radius:2px 2px 0 0;min-height:1px;position:relative}
+.chart .bar:hover{background:var(--primary-dark)}
+.chart .bar .tip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--primary-dark);color:#fff;font-size:.7rem;padding:.15rem .4rem;border-radius:4px;white-space:nowrap;z-index:2}
+.chart .bar:hover .tip{display:block}
+.chart-x{display:flex;gap:2px;font-size:.65rem;color:var(--text-light)}
+.chart-x span{flex:1;text-align:center;white-space:nowrap}
+"""
 
-  <div class="card">
-    <h2>Your API keys</h2>
-    <div class="row" style="margin-bottom:1rem">
-      <div><label for="key-name">Key name</label><input id="key-name" placeholder="production" style="width:180px"></div>
-      <button class="btn btn-primary" onclick="createKey()">Create API key</button>
-    </div>
-    <div id="keys-table">Loading&hellip;</div>
-    <p class="note">Keys are shown only once at creation. The monthly page quota resets on the 1st of each UTC month.</p>
+_DASH_COMMON_JS = (
+    "async function logout(){await fetch(\"/api/auth/logout\",{method:\"POST\"});window.location.href=\"/\";}\n"
+    "function esc(s){return String(s==null?\"\":s).replace(/[&<>\"']/g,function(c){return {\"&\":\"&amp;\",\"<\":\"&lt;\",\">\":\"&gt;\",\"\\\"\":\"&quot;\",\"'\":\"&#39;\"}[c];});}\n"
+    "function planBadge(p){return '<span class=\"badge b-'+esc(p)+'\">'+esc(String(p).toUpperCase())+\"</span>\";}\n"
+    "function statusBadge(st){return '<span class=\"badge b-'+esc(st)+'\">'+esc(st)+\"</span>\";}\n"
+    "function msg(text,ok){var m=document.getElementById(\"msg\");if(!m)return;m.textContent=text;m.className=\"msg \"+(ok?\"ok\":\"err\");}"
+)
+
+_DASH_TABS = [
+    ("Overview", "/dashboard"),
+    ("API Keys", "/dashboard/keys"),
+    ("Usage", "/dashboard/usage"),
+    ("Account", "/dashboard/account"),
+]
+
+
+def _dash_page(title: str, active: str, body: str, extra_js: str = "", extra_head: str = "") -> str:
+    """Assemble a dashboard page with shared nav, styles, and helpers."""
+    tab_html = "".join(
+        '<a href="' + href + '"' + (' class="active"' if label == active else "") + ">" + label + "</a>"
+        for label, href in _DASH_TABS
+    )
+    return (
+        '<!DOCTYPE html>\n<html lang="en">\n<head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">\n'
+        "<title>" + title + " | DoIngest</title>\n<style>" + _DASH_CSS + "</style>"
+        + extra_head
+        + "</head>\n<body>\n"
+        + '<nav><a class="brand" href="/">DoIngest</a><div class="tabs">' + tab_html
+        + '</div><button onclick="logout()">Log out</button></nav>\n'
+        + '<div class="wrap">' + body + "</div>\n"
+        + '<footer><a href="/terms">Terms</a>&middot;<a href="/refund">Refund Policy</a>'
+        + '&middot;<a href="/privacy">Privacy Policy</a>&middot;<a href="/docs">Docs</a></footer>\n'
+        + "<script>" + _DASH_COMMON_JS + "</script>\n"
+        + ("<script>" + extra_js + "</script>\n" if extra_js else "")
+        + "</body></html>"
+    )
+DASH_OVERVIEW_HTML = _dash_page(
+    "Dashboard",
+    "Overview",
+    """
+  <h1>Overview</h1>
+  <p class="sub">Your DoIngest account at a glance.</p>
+  <div class="stats">
+    <div class="stat"><div class="num" id="stat-pages">&ndash;</div><div class="lbl">Pages used this month / quota</div></div>
+    <div class="stat"><div class="num" id="stat-req">&ndash;</div><div class="lbl">Requests (last 30 days)</div></div>
+    <div class="stat"><div class="num" id="stat-keys">&ndash;</div><div class="lbl">Active API keys</div></div>
+    <div class="stat"><div class="num" id="stat-plan">&ndash;</div><div class="lbl">Current plan (newest key)</div></div>
   </div>
-
   <div class="card">
     <h2>Subscription &amp; billing</h2>
     <div class="row">
@@ -214,10 +258,8 @@ footer a{color:#888;margin:0 .5rem}
     <p class="note">Upgrades open a secure Paddle checkout. Your key&rsquo;s plan and quota update automatically after payment.</p>
     <div class="msg" id="msg"></div>
   </div>
-</div>
-<footer><a href="/terms">Terms</a>&middot;<a href="/refund">Refund Policy</a>&middot;<a href="/privacy">Privacy Policy</a>&middot;<a href="/docs">Docs</a></footer>
-<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
-<script>
+""",
+    """
 let PADDLE_OK = false;
 async function loadBillingConfig() {
   try {
@@ -229,41 +271,22 @@ async function loadBillingConfig() {
     }
   } catch (e) { console.warn("billing config unavailable"); }
 }
-function msg(text, ok) {
-  const m = document.getElementById("msg");
-  m.textContent = text; m.className = "msg " + (ok ? "ok" : "err");
-}
-function esc(s) { const d = document.createElement("div"); d.textContent = String(s); return d.innerHTML; }
-async function loadKeys() {
-  const res = await fetch("/api/keys");
-  if (res.status === 401) { window.location.href = "/login"; return; }
-  const data = await res.json();
-  const rows = data.keys.map(k =>
-    "<tr><td>" + esc(k.name) + "</td><td><code>" + esc(k.key_prefix) + "&hellip;</code></td>" +
-    "<td><span class='badge b-" + esc(k.plan) + "'>" + esc(k.plan) + "</span></td>" +
-    "<td class='usage'>" + k.used_pages + " / " + k.monthly_page_quota + "</td>" +
-    "<td>" + (k.active ? "<button class='btn btn-danger' onclick=\"revokeKey(" + k.id + ")\">Revoke</button>" : "<span class='badge b-inactive'>inactive</span>") + "</td></tr>");
-  document.getElementById("keys-table").innerHTML = rows.length
-    ? "<table><tr><th>Name</th><th>Key</th><th>Plan</th><th>Usage (pages/mo)</th><th></th></tr>" + rows.join("") + "</table>"
-    : "<p class='note'>No API keys yet &mdash; create your first key above.</p>";
+async function loadOverview() {
+  const data = await (await fetch("/api/keys")).json();
+  const keys = data.keys || [];
+  const active = keys.filter(k => k.active);
+  const pages = keys.reduce((a, k) => a + (k.used_pages || 0), 0);
+  const quota = active.reduce((a, k) => a + (k.monthly_page_quota || 0), 0);
+  document.getElementById("stat-pages").textContent = pages + " / " + quota;
+  document.getElementById("stat-keys").textContent = active.length;
+  const newest = keys.find(k => k.active);
+  document.getElementById("stat-plan").innerHTML = newest ? planBadge(newest.plan) : '<span class="badge b-free">NO KEY</span>';
   const sel = document.getElementById("up-key");
-  sel.innerHTML = data.keys.filter(k => k.active).map(k => "<option value='" + k.id + "'>" + esc(k.key_prefix) + "&hellip; (" + esc(k.plan) + ")</option>").join("");
-}
-async function createKey() {
-  const name = document.getElementById("key-name").value.trim() || "default";
-  const res = await fetch("/api/keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name }) });
-  if (res.status === 401) { window.location.href = "/login"; return; }
-  if (!res.ok) { msg("Failed to create key", false); return; }
-  const data = await res.json();
-  const banner = document.getElementById("key-banner");
-  banner.innerHTML = "<strong>&#9888; Your new API key (copy it now, shown only once):</strong><br><code style='font-size:1rem;color:#c1121f'>" + data.api_key + "</code><br><em>Plan: " + data.plan + " (" + data.monthly_page_quota + " pages/mo)</em>";
-  banner.style.display = "block";
-  await loadKeys();
-}
-async function revokeKey(id) {
-  if (!confirm("Revoke this API key? Requests using it will stop working immediately.")) return;
-  await fetch("/api/keys/" + id + "/revoke", { method: "POST" });
-  await loadKeys();
+  sel.innerHTML = keys.map(k => '<option value="' + k.id + '">' + esc(k.name) + " (" + esc(k.plan) + ")</option>").join("");
+  try {
+    const usage = await (await fetch("/api/usage/summary?days=30")).json();
+    document.getElementById("stat-req").textContent = (usage.totals || {}).requests || 0;
+  } catch (e) { document.getElementById("stat-req").textContent = "0"; }
 }
 async function upgrade(plan) {
   const keyId = document.getElementById("up-key").value;
@@ -286,10 +309,151 @@ async function openPortal() {
     window.open(data.portal_url, "_blank");
   } catch (e) { msg("Portal error: network error", false); }
 }
-async function logout() { await fetch("/api/auth/logout", { method: "POST" }); window.location.href = "/"; }
-(async function init() { await loadBillingConfig(); await loadKeys(); })();
-</script>
-</body></html>"""
+(async function init() { await loadBillingConfig(); await loadOverview(); })();
+""",
+    '<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>',
+)
+DASH_KEYS_HTML = _dash_page(
+    "API Keys",
+    "API Keys",
+    """
+  <h1>API Keys</h1>
+  <p class="sub">Create and manage the keys used to call the DoIngest API.</p>
+  <div class="banner" id="key-banner"></div>
+  <div class="card">
+    <h2>Create a key</h2>
+    <div class="row" style="margin-bottom:1rem">
+      <div><label for="key-name">Key name</label><input id="key-name" placeholder="production" style="width:180px"></div>
+      <button class="btn btn-primary" onclick="createKey()">Create API key</button>
+    </div>
+    <div id="keys-table">Loading&hellip;</div>
+    <p class="note">Keys are shown only once at creation &mdash; copy and store them securely. The monthly page quota resets on the 1st of each UTC month.</p>
+  </div>
+""",
+    """
+async function loadKeys() {
+  const data = await (await fetch("/api/keys")).json();
+  const keys = data.keys || [];
+  const el = document.getElementById("keys-table");
+  if (!keys.length) { el.innerHTML = "<p class='note'>No API keys yet &mdash; create your first key above.</p>"; return; }
+  el.innerHTML = "<table><tr><th>Name</th><th>Key</th><th>Plan</th><th>Usage (pages/mo)</th><th>Status</th><th>Created</th><th></th></tr>" +
+    keys.map(k => "<tr><td>" + esc(k.name) + "</td><td><code>" + esc(k.key_prefix) + "&hellip;</code></td><td>" + planBadge(k.plan) + "</td><td class='usage'>" + k.used_pages + " / " + k.monthly_page_quota + "</td><td>" + (k.active ? '<span class="badge b-succeeded">ACTIVE</span>' : '<span class="badge b-inactive">REVOKED</span>') + "</td><td>" + esc(k.created_at.slice(0, 10)) + "</td><td>" + (k.active ? "<button class='btn btn-danger' onclick='revokeKey(" + k.id + ")'>Revoke</button>" : "") + "</td></tr>").join("") + "</table>";
+}
+async function createKey() {
+  const name = document.getElementById("key-name").value.trim() || "default";
+  const res = await fetch("/api/keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name }) });
+  if (!res.ok) { alert("Failed to create key"); return; }
+  const data = await res.json();
+  const banner = document.getElementById("key-banner");
+  banner.innerHTML = "<strong>&#9888; Your new API key (copy it now &mdash; shown only once):</strong><br><code style=\\"font-size:1rem;color:#c1121f\\">" + data.api_key + "</code>";
+  banner.style.display = "block";
+  await loadKeys();
+}
+async function revokeKey(id) {
+  if (!confirm("Revoke this API key? Requests using it will fail immediately.")) return;
+  await fetch("/api/keys/" + id + "/revoke", { method: "POST" });
+  await loadKeys();
+}
+loadKeys();
+""",
+)
+DASH_USAGE_HTML = _dash_page(
+    "Usage",
+    "Usage",
+    """
+  <h1>Usage</h1>
+  <p class="sub">Parse requests and page consumption over the last 30 days.</p>
+  <div class="stats">
+    <div class="stat"><div class="num" id="t-pages">&ndash;</div><div class="lbl">Pages (30 days)</div></div>
+    <div class="stat"><div class="num" id="t-req">&ndash;</div><div class="lbl">Requests (30 days)</div></div>
+    <div class="stat"><div class="num" id="t-ok">&ndash;</div><div class="lbl">Succeeded</div></div>
+    <div class="stat"><div class="num" id="t-fail">&ndash;</div><div class="lbl">Failed</div></div>
+  </div>
+  <div class="card">
+    <h2>Pages per day</h2>
+    <div class="chart" id="chart"></div>
+    <div class="chart-x" id="chart-x"></div>
+  </div>
+  <div class="card">
+    <h2>Recent requests</h2>
+    <div id="recent">Loading&hellip;</div>
+  </div>
+""",
+    """
+async function loadUsage() {
+  const data = await (await fetch("/api/usage/summary?days=30")).json();
+  const daily = data.daily || [];
+  const max = Math.max(1, ...daily.map(d => d.pages));
+  document.getElementById("chart").innerHTML = daily.map(d =>
+    '<div class="bar" style="height:' + Math.max(1, d.pages / max * 100) + '%"><span class="tip">' + d.date + ": " + d.pages + " pages / " + d.requests + " req</span></div>"
+  ).join("");
+  document.getElementById("chart-x").innerHTML = daily.map((d, i) => "<span>" + (i % 5 === 0 ? d.date.slice(5) : "") + "</span>").join("");
+  const t = data.totals || {};
+  document.getElementById("t-pages").textContent = t.pages || 0;
+  document.getElementById("t-req").textContent = t.requests || 0;
+  document.getElementById("t-ok").textContent = t.succeeded || 0;
+  document.getElementById("t-fail").textContent = t.failed || 0;
+  const rows = (data.recent || []).map(j =>
+    "<tr><td>" + esc(j.file_name) + "</td><td>" + statusBadge(j.status) + "</td><td class='usage'>" + (j.pages_used || 0) + "</td><td>" + esc(j.engine_used || "-") + "</td><td class='usage'>" + (j.duration_ms != null ? Math.round(j.duration_ms) + "ms" : "-") + "</td><td>" + esc(j.created_at.replace("T", " ").slice(0, 16)) + "</td></tr>"
+  );
+  document.getElementById("recent").innerHTML = rows.length
+    ? "<table><tr><th>File</th><th>Status</th><th>Pages</th><th>Engine</th><th>Duration</th><th>Time (UTC)</th></tr>" + rows.join("") + "</table>"
+    : "<p class='note'>No parse requests in the last 30 days.</p>";
+}
+loadUsage();
+""",
+)
+
+DASH_ACCOUNT_HTML = _dash_page(
+    "Account",
+    "Account",
+    """
+  <h1>Account</h1>
+  <p class="sub">Manage your DoIngest account settings.</p>
+  <div class="card">
+    <h2>Profile</h2>
+    <table style="max-width:520px">
+      <tr><th style="width:140px">Email</th><td id="acc-email">Loading&hellip;</td></tr>
+      <tr><th>Status</th><td id="acc-verified">&ndash;</td></tr>
+      <tr><th>Member since</th><td id="acc-created">&ndash;</td></tr>
+    </table>
+  </div>
+  <div class="card">
+    <h2>Change password</h2>
+    <div class="row" style="max-width:520px">
+      <div style="flex:1;min-width:200px"><label for="cur-pw">Current password</label><input id="cur-pw" type="password" style="width:100%"></div>
+      <div style="flex:1;min-width:200px"><label for="new-pw">New password (min 8 chars)</label><input id="new-pw" type="password" style="width:100%"></div>
+      <button class="btn btn-primary" onclick="changePassword()">Update password</button>
+    </div>
+    <div class="msg" id="msg"></div>
+  </div>
+""",
+    """
+async function loadAccount() {
+  const data = await (await fetch("/api/account")).json();
+  document.getElementById("acc-email").textContent = data.email;
+  document.getElementById("acc-verified").innerHTML = data.email_verified
+    ? '<span class="badge b-succeeded">VERIFIED</span>'
+    : '<span class="badge b-queued">NOT VERIFIED</span>';
+  document.getElementById("acc-created").textContent = (data.created_at || "").slice(0, 10);
+}
+async function changePassword() {
+  const current = document.getElementById("cur-pw").value;
+  const next = document.getElementById("new-pw").value;
+  if (!current || !next) { msg("Fill in both fields", false); return; }
+  try {
+    const res = await fetch("/api/account/password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ current_password: current, new_password: next }) });
+    const err = await res.json().catch(() => ({}));
+    if (!res.ok) { msg((err.detail && err.detail.message) || "Failed: " + res.status, false); return; }
+    msg("Password updated successfully", true);
+    document.getElementById("cur-pw").value = "";
+    document.getElementById("new-pw").value = "";
+  } catch (e) { msg("Network error", false); }
+}
+loadAccount();
+""",
+)
+
 
 _EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
@@ -551,11 +715,26 @@ def create_app(
 
         duration_ms = round((time.perf_counter() - started) * 1000, 2)
         metadata = _response_metadata(result, duration_ms)
+        pages_used = _page_count(metadata)
         record_page_usage(
             state.session_factory,
             api_key_id=api_key.id,
-            pages=_page_count(metadata),
+            pages=pages_used,
         )
+        with state.session_factory.begin() as db:
+            db.add(
+                ParseJob(
+                    api_key_id=api_key.id,
+                    status="succeeded",
+                    file_name=file.filename or "upload",
+                    category=category,
+                    content=b"",
+                    engine_used=result.engine_used,
+                    confidence=result.confidence,
+                    duration_ms=duration_ms,
+                    pages_used=pages_used,
+                )
+            )
         response: dict[str, Any] = {"markdown": result.markdown, "metadata": metadata}
         if api_key.plan == "demo":
             response["upgrade_url"] = "/#pricing"
@@ -1713,6 +1892,108 @@ automatically within a minute.</p>
             key.active = False
         return {"ok": True, "id": key_id}
 
+    @router.get("/api/usage/summary", tags=["auth"])
+    def usage_summary(request: Request, days: int = 30) -> dict[str, Any]:
+        """Return per-day usage statistics and recent parse jobs for the user."""
+        user = _require_user(request)
+        days = max(7, min(days, 90))
+        since_date = datetime.now(UTC).date() - timedelta(days=days - 1)
+        since = datetime.combine(since_date, datetime.min.time(), tzinfo=UTC)
+        with session_factory.begin() as db:
+            key_ids = db.scalars(
+                select(ApiKey.id).where(ApiKey.owner_user_id == user.id)
+            ).all()
+            if not key_ids:
+                return {
+                    "days": days,
+                    "daily": [
+                        {
+                            "date": (since_date + timedelta(days=i)).isoformat(),
+                            "pages": 0,
+                            "requests": 0,
+                        }
+                        for i in range(days)
+                    ],
+                    "totals": {"pages": 0, "requests": 0, "succeeded": 0, "failed": 0},
+                    "recent": [],
+                }
+            jobs = (
+                db.execute(
+                    select(ParseJob)
+                    .where(
+                        ParseJob.api_key_id.in_(key_ids),
+                        ParseJob.created_at >= since,
+                    )
+                    .order_by(ParseJob.created_at.desc())
+                )
+                .scalars()
+                .all()
+            )
+        daily: dict[str, dict[str, Any]] = {}
+        for i in range(days):
+            d = (since_date + timedelta(days=i)).isoformat()
+            daily[d] = {"date": d, "pages": 0, "requests": 0}
+        totals: dict[str, int] = {"pages": 0, "requests": 0, "succeeded": 0, "failed": 0}
+        recent: list[dict[str, Any]] = []
+        for job in jobs:
+            day = job.created_at.date().isoformat()
+            if day in daily:
+                daily[day]["requests"] += 1
+                daily[day]["pages"] += job.pages_used or 0
+            totals["requests"] += 1
+            totals["pages"] += job.pages_used or 0
+            if job.status == "succeeded":
+                totals["succeeded"] += 1
+            elif job.status == "failed":
+                totals["failed"] += 1
+            if len(recent) < 25:
+                recent.append(
+                    {
+                        "id": job.id,
+                        "file_name": job.file_name,
+                        "status": job.status,
+                        "pages_used": job.pages_used or 0,
+                        "engine_used": job.engine_used,
+                        "duration_ms": job.duration_ms,
+                        "created_at": job.created_at.isoformat(),
+                    }
+                )
+        return {
+            "days": days,
+            "daily": list(daily.values()),
+            "totals": totals,
+            "recent": recent,
+        }
+
+    @router.get("/api/account", tags=["auth"])
+    def account_info(request: Request) -> dict[str, Any]:
+        """Return the signed-in user's account profile."""
+        user = _require_user(request)
+        return {
+            "email": user.email,
+            "email_verified": user.email_verified,
+            "created_at": user.created_at.isoformat(),
+        }
+
+    @router.post("/api/account/password", tags=["auth"])
+    async def change_password(request: Request) -> dict[str, Any]:
+        """Change the signed-in user's password."""
+        user = _require_user(request)
+        try:
+            body = await request.json()
+        except Exception:
+            raise _api_error(422, "invalid_request", "Body must be JSON") from None
+        current = str((body or {}).get("current_password") or "")
+        new = str((body or {}).get("new_password") or "")
+        if len(new) < 8:
+            raise _api_error(422, "weak_password", "New password must be at least 8 characters")
+        with session_factory.begin() as db:
+            row = db.get(User, user.id)
+            if row is None or not verify_password(current, row.password_hash):
+                raise _api_error(401, "invalid_credentials", "Current password is incorrect")
+            row.password_hash = hash_password(new)
+        return {"ok": True}
+
     @router.post("/api/billing/checkout", tags=["auth"])
     def dashboard_checkout(
         request: Request,
@@ -1826,12 +2107,43 @@ automatically within a minute.</p>
         """Serve the combined sign-in / create-account page."""
         return HTMLResponse(content=LOGIN_HTML)
 
-    @router.get("/dashboard", tags=["auth"], response_class=HTMLResponse, include_in_schema=False)
-    def dashboard_page(request: Request) -> Any:
-        """Serve the customer dashboard (requires sign-in)."""
+    def _dashboard_redirect(request: Request) -> RedirectResponse | None:
+        """Return a login redirect when the visitor has no session."""
         if _current_user(request) is None:
             return RedirectResponse("/login", status_code=303)
-        return HTMLResponse(content=DASH_HTML)
+        return None
+
+    @router.get("/dashboard", tags=["auth"], response_class=HTMLResponse, include_in_schema=False)
+    def dashboard_page(request: Request) -> Any:
+        """Serve the dashboard overview (requires sign-in)."""
+        redirect = _dashboard_redirect(request)
+        if redirect is not None:
+            return redirect
+        return HTMLResponse(content=DASH_OVERVIEW_HTML)
+
+    @router.get("/dashboard/keys", tags=["auth"], response_class=HTMLResponse, include_in_schema=False)
+    def dashboard_keys_page(request: Request) -> Any:
+        """Serve the API keys management page (requires sign-in)."""
+        redirect = _dashboard_redirect(request)
+        if redirect is not None:
+            return redirect
+        return HTMLResponse(content=DASH_KEYS_HTML)
+
+    @router.get("/dashboard/usage", tags=["auth"], response_class=HTMLResponse, include_in_schema=False)
+    def dashboard_usage_page(request: Request) -> Any:
+        """Serve the usage statistics page (requires sign-in)."""
+        redirect = _dashboard_redirect(request)
+        if redirect is not None:
+            return redirect
+        return HTMLResponse(content=DASH_USAGE_HTML)
+
+    @router.get("/dashboard/account", tags=["auth"], response_class=HTMLResponse, include_in_schema=False)
+    def dashboard_account_page(request: Request) -> Any:
+        """Serve the account settings page (requires sign-in)."""
+        redirect = _dashboard_redirect(request)
+        if redirect is not None:
+            return redirect
+        return HTMLResponse(content=DASH_ACCOUNT_HTML)
 
     # --- Legal pages (Paddle domain review requirement) ---
 

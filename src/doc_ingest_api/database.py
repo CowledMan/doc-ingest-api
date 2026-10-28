@@ -48,6 +48,14 @@ class Database:
                     conn.execute(
                         text(f"ALTER TABLE api_keys ADD COLUMN {column_name} {column_type}")
                     )
+        if inspector.has_table("parse_jobs"):
+            job_columns = {col["name"] for col in inspector.get_columns("parse_jobs")}
+            if "pages_used" not in job_columns:
+                with self.engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE parse_jobs ADD COLUMN pages_used INTEGER"))
+                    conn.execute(
+                        text("UPDATE parse_jobs SET pages_used = 0 WHERE pages_used IS NULL")
+                    )
 
 
 def _resolve_driver(database_url: str) -> str:

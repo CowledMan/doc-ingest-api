@@ -26,6 +26,7 @@ from .parsers import (
     ParserRouter,
     create_parser_router,
 )
+from .quotas import record_page_usage
 
 
 class TaskQueue(Protocol):
@@ -192,7 +193,11 @@ def _complete_job(
         job.engine_used = result.engine_used
         job.confidence = result.confidence
         job.duration_ms = duration_ms
+        job.pages_used = int(metadata.get("page_count", 1))
         job.error = None
+        api_key_id = job.api_key_id
+        pages_used = job.pages_used
+    record_page_usage(session_factory, api_key_id=api_key_id, pages=pages_used)
 
 
 def _fail_job(session_factory: sessionmaker[Session], job_id: int, error: str) -> None:

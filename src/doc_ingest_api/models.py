@@ -79,6 +79,7 @@ class ParseJob(Base):
     engine_used: Mapped[str | None] = mapped_column(String(32), nullable=True)
     confidence: Mapped[float | None] = mapped_column(nullable=True)
     duration_ms: Mapped[float | None] = mapped_column(nullable=True)
+    pages_used: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
     webhook_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
