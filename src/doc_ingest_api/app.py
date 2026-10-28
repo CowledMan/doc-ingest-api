@@ -60,6 +60,7 @@ from .security import (
     generate_api_key,
     hash_api_key,
     hash_password,
+    key_prefix,
     sign_session,
     verify_password,
     verify_session,
@@ -1067,7 +1068,7 @@ footer .copyright{text-align:center;font-size:.78rem;color:#64748b;border-top:1p
           <li>All file formats</li>
           <li>Community support</li>
         </ul>
-        <a href="#try-free" class="btn btn-cta-free btn-cta">Start Free</a>
+        <button id="btn-free" class="btn btn-cta-free btn-cta" onclick="startFree()">Start Free</button>
       </div>
       <div class="plan-card featured">
         <span class="badge">Most Popular</span>
@@ -1094,22 +1095,6 @@ footer .copyright{text-align:center;font-size:.78rem;color:#64748b;border-top:1p
       </div>
     </div>
 
-    <div class="pricing-form" id="try-free">
-      <div id="key-banner" class="key-banner"></div>
-      <div class="inputs">
-        <div>
-          <label for="api-key-input">Your API key</label>
-          <input id="api-key-input" type="text" placeholder="dip_...">
-        </div>
-        <div>
-          <label for="email-input">Email (for key recovery)</label>
-          <input id="email-input" type="email" placeholder="you@example.com">
-        </div>
-      </div>
-      <p class="note">Lost your key? <a href="#" onclick="recoverKeys();return false;">Recover my Key</a> using your email.</p>
-      <p class="note">After checkout, your API key plan is upgraded automatically via webhook.</p>
-      <p class="note">No signup required. Free keys get 5 pages/month.</p>
-    </div>
   </div>
 </section>
 
@@ -1205,38 +1190,21 @@ async function loadBillingConfig() {
     }
   } catch(e) { console.warn("billing config unavailable"); }
 }
-function showKeyBanner(key, plan) {
-  const banner = document.getElementById("key-banner");
-  if (banner) {
-    banner.innerHTML = "<strong>\\u26a0 Your API Key (copy it now, shown only once):</strong><br><code style=\\"font-size:1rem;color:#e63946\\">" + key + "</code><br><em>Plan: " + plan + "</em>";
-    banner.style.display = "block";
-  }
+async function fetchMe() {
+  try { return await (await fetch("/api/auth/me")).json(); } catch (e) { return { authenticated: false }; }
+}
+async function requireLogin() {
+  const me = await fetchMe();
+  if (!me.authenticated) { window.location.href = "/login"; return null; }
+  return me;
 }
 async function openCheckout(plan) {
-  const apiKeyInput = document.getElementById("api-key-input");
-  const emailInput = document.getElementById("email-input");
-  let apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
-  const email = emailInput ? emailInput.value.trim() : "";
-  if (!apiKey) {
-    if (!email) { alert("Enter your API key or email address first"); return; }
-    try {
-      const res = await fetch("/v1/demo-keys", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email }),
-      });
-      if (!res.ok) { alert("Failed to create key"); return; }
-      const data = await res.json();
-      apiKey = data.api_key;
-      if (apiKeyInput) apiKeyInput.value = apiKey;
-      showKeyBanner(apiKey, data.plan);
-    } catch (e) { alert("Failed to create key: network error"); return; }
-  }
+  const me = await requireLogin(); if (!me) return;
   if (!window._paddleCfg) { alert("Billing not configured"); return; }
   try {
-    const res = await fetch("/v1/billing/checkout", {
+    const res = await fetch("/api/billing/checkout", {
       method: "POST",
-      headers: { "X-API-Key": apiKey, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ plan: plan }),
     });
     if (!res.ok) {
@@ -1245,40 +1213,20 @@ async function openCheckout(plan) {
       return;
     }
     const data = await res.json();
-    const checkoutOpts = { transactionId: data.checkout_session_id };
-    if (email) { checkoutOpts.customer = { email: email }; }
-    Paddle.Checkout.open(checkoutOpts);
+    Paddle.Checkout.open({ transactionId: data.checkout_session_id, customer: { email: me.email } });
   } catch (e) { alert("Checkout failed: network error"); }
 }
-async function recoverKeys() {
-  const emailInput = document.getElementById("email-input");
-  const email = emailInput ? emailInput.value.trim() : "";
-  if (!email) { alert("Enter your email address first"); return; }
-  try {
-    const res = await fetch("/v1/keys/recover", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email: email }),
-    });
-    if (res.status === 404) { alert("No keys found for this email address"); return; }
-    if (!res.ok) { alert("Recovery failed: " + res.status); return; }
-    const data = await res.json();
-    if (data.keys && data.keys.length > 0) {
-      const k = data.keys[0];
-      const apiKeyInput = document.getElementById("api-key-input");
-      if (apiKeyInput) apiKeyInput.value = k.key;
-      showKeyBanner(k.key, k.plan + " (" + k.monthly_page_quota + " pages/mo)");
-    }
-  } catch (e) { alert("Recovery failed: network error"); }
+async function startFree() {
+  const me = await requireLogin(); if (!me) return;
+  window.location.href = "/dashboard";
 }
 async function openPortal() {
-  const apiKeyInput = document.getElementById("api-key-input");
-  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : "";
-  if (!apiKey) { alert("Enter your API key first"); return; }
+  const me = await requireLogin(); if (!me) return;
   try {
-    const res = await fetch("/v1/billing/portal", {
+    const res = await fetch("/api/billing/portal", {
       method: "POST",
-      headers: { "X-API-Key": apiKey },
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
@@ -1289,6 +1237,15 @@ async function openPortal() {
     window.open(data.portal_url, "_blank");
   } catch (e) { alert("Portal error: network error"); }
 }
+async function updateNav() {
+  const me = await fetchMe();
+  if (me.authenticated) {
+    document.querySelectorAll("nav .links a").forEach(function (a) {
+      if (a.textContent.trim() === "Log in") { a.textContent = "Dashboard"; a.href = "/dashboard"; }
+    });
+  }
+}
+updateNav();
 loadBillingConfig();
 </script>
 </body></html>""")
@@ -1686,6 +1643,14 @@ automatically within a minute.</p>
         response.delete_cookie(SESSION_COOKIE_NAME)
         return response
 
+    @router.get("/api/auth/me", tags=["auth"])
+    def auth_me(request: Request) -> dict[str, Any]:
+        """Return the current session state for the landing page."""
+        user = _current_user(request)
+        if user is None:
+            return {"authenticated": False}
+        return {"authenticated": True, "email": user.email}
+
     @router.get("/api/keys", tags=["auth"])
     def list_user_keys(request: Request) -> dict[str, Any]:
         """List the signed-in user's API keys (metadata only, no secrets)."""
@@ -1759,14 +1724,37 @@ automatically within a minute.</p>
         plan = str(payload.get("plan") or "starter")
         if plan not in {"starter", "pro"}:
             raise _api_error(422, "invalid_plan", "plan must be starter or pro")
-        key_id = payload.get("key_id")
-        if not key_id:
-            raise _api_error(422, "invalid_request", "key_id is required")
         state = _app_state(request)
         with session_factory.begin() as db:
-            key = db.get(ApiKey, int(key_id))
-            if key is None or key.owner_user_id != user.id:
-                raise _api_error(404, "key_not_found", "API key not found")
+            key: ApiKey | None = None
+            key_id = payload.get("key_id")
+            if key_id:
+                key = db.get(ApiKey, int(key_id))
+                if key is None or key.owner_user_id != user.id:
+                    raise _api_error(404, "key_not_found", "API key not found")
+            else:
+                key = db.scalar(
+                    select(ApiKey)
+                    .where(
+                        ApiKey.owner_user_id == user.id,
+                        ApiKey.active == True,  # noqa: E712
+                    )
+                    .order_by(ApiKey.created_at.desc())
+                )
+                if key is None:
+                    raw_key = generate_api_key()
+                    key = ApiKey(
+                        name="default",
+                        key_hash=hash_api_key(raw_key),
+                        key_prefix=key_prefix(raw_key),
+                        monthly_page_quota=FREE_PLAN_QUOTA,
+                        used_pages=0,
+                        active=True,
+                        plan="free",
+                        owner_user_id=user.id,
+                    )
+                    db.add(key)
+                    db.flush()
             api_key_id = key.id
         if state.billing_provider.provider_name == "paddle":
             price_id = (
@@ -1799,13 +1787,27 @@ automatically within a minute.</p>
         """Session-authenticated customer portal session."""
         user = _require_user(request)
         payload = body or {}
-        key_id = payload.get("key_id")
-        if not key_id:
-            raise _api_error(422, "invalid_request", "key_id is required")
         state = _app_state(request)
         with session_factory.begin() as db:
-            key = db.get(ApiKey, int(key_id))
-            if key is None or key.owner_user_id != user.id:
+            key: ApiKey | None = None
+            key_id = payload.get("key_id")
+            if key_id:
+                key = db.get(ApiKey, int(key_id))
+                if key is None or key.owner_user_id != user.id:
+                    raise _api_error(404, "key_not_found", "API key not found")
+            else:
+                key = db.scalar(
+                    select(ApiKey)
+                    .where(
+                        ApiKey.owner_user_id == user.id,
+                        ApiKey.active == True,  # noqa: E712
+                    )
+                    .order_by(
+                        ApiKey.paddle_customer_id.is_not(None).desc(),
+                        ApiKey.created_at.desc(),
+                    )
+                )
+            if key is None:
                 raise _api_error(404, "key_not_found", "API key not found")
             api_key = key
         if state.settings.paddle_env in ("sandbox", "live"):
@@ -1996,3 +1998,4 @@ footer{{margin-top:2rem;padding-top:1rem;border-top:1px solid #ddd;font-size:.85
         return _legal_page("Privacy Policy", body)
 
     return app
+

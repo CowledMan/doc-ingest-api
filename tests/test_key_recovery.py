@@ -175,25 +175,24 @@ class TestKeyRecovery:
 
 
 class TestLandingPageEmailRecovery:
-    """Landing page has email input, recover link, and banner."""
+    """Landing page is auth-gated; key recovery stays available via API."""
 
-    def test_landing_has_email_input(self) -> None:
+    def test_landing_has_no_email_input(self) -> None:
         client, _db = _app()
         response = client.get("/")
         assert response.status_code == 200
-        assert 'id="email-input"' in response.text
+        assert 'id="email-input"' not in response.text
 
-    def test_landing_has_recover_link(self) -> None:
+    def test_landing_links_to_login(self) -> None:
         client, _db = _app()
         response = client.get("/")
-        assert "recoverKeys" in response.text
-        assert "Recover my Key" in response.text
+        assert 'href="/login"' in response.text
 
-    def test_landing_has_key_banner(self) -> None:
+    def test_recovery_api_still_available(self) -> None:
         client, _db = _app()
-        response = client.get("/")
-        assert 'id="key-banner"' in response.text
-        assert "showKeyBanner" in response.text
+        response = client.post("/v1/keys/recover", json={"email": "x@example.com"})
+        assert response.status_code == 404
+        assert response.json()["detail"]["code"] == "email_not_found"
 
     def test_landing_checkout_sends_email(self) -> None:
         client, _db = _app()
@@ -205,3 +204,4 @@ class TestLandingPageEmailRecovery:
         response = client.get("/billing/success")
         assert response.status_code == 200
         assert "recover" in response.text.lower()
+

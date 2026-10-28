@@ -263,7 +263,7 @@ class TestPaddleLandingPage:
         assert "cdn.paddle.com/paddle" in response.text
         assert "openCheckout" in response.text
         assert "transactionId" in response.text
-        assert "/v1/billing/checkout" in response.text
+        assert "/api/billing/checkout" in response.text
         assert "Paddle.Checkout.open" in response.text
         assert "Get Starter" in response.text
         assert "Get Pro" in response.text
@@ -327,4 +327,5 @@ def _paddle_app_with_db(**overrides: Any) -> tuple[TestClient, Any]:
         parser_router=type("R", (), {"parse": lambda self, path, category=None: parser.parse(path)})(),
     )
     return TestClient(app), database
+
 
