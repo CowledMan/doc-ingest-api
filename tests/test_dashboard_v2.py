@@ -147,3 +147,22 @@ class TestKeyLimit:
         assert client.post(f"/api/keys/{revoke_id}/revoke").status_code == 200
         res = client.post("/api/keys", json={"name": "after-revoke"})
         assert res.status_code == 200
+
+
+class TestFirstKeyFreeAllowance:
+    def test_only_first_active_key_is_free(self, client: TestClient) -> None:
+        _register(client)
+        first = client.post("/api/keys", json={"name": "first"}).json()
+        assert first["monthly_page_quota"] == 5
+        second = client.post("/api/keys", json={"name": "second"}).json()
+        assert second["monthly_page_quota"] == 0
+        third = client.post("/api/keys", json={"name": "third"}).json()
+        assert third["monthly_page_quota"] == 0
+
+    def test_free_allowance_returns_after_revoking(self, client: TestClient) -> None:
+        _register(client)
+        client.post("/api/keys", json={"name": "first"})
+        keys = client.get("/api/keys").json()["keys"]
+        client.post(f"/api/keys/{keys[0]['id']}/revoke")
+        fresh = client.post("/api/keys", json={"name": "fresh"}).json()
+        assert fresh["monthly_page_quota"] == 5

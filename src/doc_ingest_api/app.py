@@ -328,6 +328,7 @@ DASH_KEYS_HTML = _dash_page(
     </div>
     <div id="keys-table">Loading&hellip;</div>
     <p class="note">Keys are shown only once at creation &mdash; copy and store them securely. The monthly page quota resets on the 1st of each UTC month.</p>
+    <p class="note">Only your first active key includes the free 5 pages/month allowance. Additional keys start with 0 pages until you upgrade them to a paid plan.</p>
   </div>
 """,
     """
@@ -1893,12 +1894,17 @@ automatically within a minute.</p>
                     f"Active API key limit reached ({MAX_ACTIVE_KEYS_PER_USER}). "
                     "Revoke an unused key first.",
                 )
-        result = create_user_api_key(session_factory, user_id=user.id, name=name)
+            # Only the user's first active key carries the free allowance;
+            # additional keys start with zero quota until upgraded to a plan.
+            quota = 0 if active_count >= 1 else FREE_PLAN_QUOTA
+        result = create_user_api_key(
+            session_factory, user_id=user.id, name=name, monthly_page_quota=quota
+        )
         return {
             "api_key": result["api_key"],
             "key_prefix": result["key_prefix"],
             "plan": "free",
-            "monthly_page_quota": FREE_PLAN_QUOTA,
+            "monthly_page_quota": quota,
         }
 
     @router.post("/api/keys/{key_id}/revoke", tags=["auth"])

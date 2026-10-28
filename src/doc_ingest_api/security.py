@@ -133,6 +133,7 @@ def create_user_api_key(
     *,
     user_id: int,
     name: str = "default",
+    monthly_page_quota: int = FREE_PLAN_QUOTA,
 ) -> dict[str, str]:
     """Create a non-expiring free-plan API key owned by one user."""
     if not name or len(name) > 120:
@@ -144,7 +145,7 @@ def create_user_api_key(
                 name=name,
                 key_hash=hash_api_key(raw_key),
                 key_prefix=key_prefix(raw_key),
-                monthly_page_quota=FREE_PLAN_QUOTA,
+                monthly_page_quota=monthly_page_quota,
                 used_pages=0,
                 active=True,
                 plan="free",
