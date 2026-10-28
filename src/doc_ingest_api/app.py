@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import html
 import json
 import re
@@ -25,7 +26,13 @@ from fastapi import (
     Request,
     UploadFile,
 )
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    RedirectResponse,
+)
+from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -37,15 +44,251 @@ from .exceptions import (
     ParseResult,
     ParserTimeoutError,
 )
-from .models import ApiKey, ParseJob
+from .models import ApiKey, ParseJob, User
 from .parsers import (
     ParserRouter,
     create_parser_router,
 )
 from .quotas import ensure_monthly_period, record_page_usage
 from .rate_limit import InMemoryRateLimiter, RateLimiter
-from .security import find_api_key, generate_api_key, hash_api_key
+from .security import (
+    FREE_PLAN_QUOTA,
+    SESSION_COOKIE_NAME,
+    SESSION_TTL_SECONDS,
+    create_user_api_key,
+    find_api_key,
+    generate_api_key,
+    hash_api_key,
+    hash_password,
+    sign_session,
+    verify_password,
+    verify_session,
+)
 from .tasks import build_task_queue
+
+LOGIN_HTML = r"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Sign in | DoIngest</title>
+<style>
+:root{--primary:#457b9d;--primary-dark:#1d3557;--bg:#f8f9fa;--bg-alt:#e9ecef;--text:#1a1a2e;--text-light:#555;--border:#dee2e6;--radius:8px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;color:var(--text);background:var(--bg);line-height:1.6}
+nav{background:var(--primary-dark);padding:.8rem 1.5rem}
+nav .brand{color:#fff;font-weight:700;font-size:1.1rem;text-decoration:none}
+.wrap{max-width:420px;margin:3rem auto;padding:0 1.5rem}
+.card{background:#fff;border-radius:var(--radius);box-shadow:0 2px 8px rgba(0,0,0,.08);padding:2rem}
+h1{font-size:1.4rem;margin-bottom:1.2rem;color:var(--primary-dark)}
+.tabs{display:flex;gap:.5rem;margin-bottom:1.2rem}
+.tabs button{flex:1;padding:.5rem;border:1px solid var(--border);background:var(--bg);border-radius:6px;cursor:pointer;font-size:.9rem;font-weight:600}
+.tabs button.on{background:var(--primary);color:#fff;border-color:var(--primary)}
+label{display:block;font-size:.85rem;font-weight:600;margin:.8rem 0 .2rem}
+input{width:100%;padding:.55rem;border:1px solid var(--border);border-radius:6px;font-size:.9rem}
+.btn{width:100%;margin-top:1.2rem;padding:.7rem;border:none;border-radius:6px;background:var(--primary);color:#fff;font-size:.95rem;font-weight:600;cursor:pointer}
+.btn:hover{opacity:.9}
+.msg{margin-top:.8rem;font-size:.85rem;min-height:1.2em}
+.msg.err{color:#c1121f}
+.note{margin-top:1rem;font-size:.8rem;color:var(--text-light);text-align:center}
+.note a{color:var(--primary)}
+footer{text-align:center;margin-top:1.5rem;font-size:.78rem;color:#888}
+footer a{color:#888;margin:0 .5rem}
+</style></head>
+<body>
+<nav><a class="brand" href="/">DoIngest</a></nav>
+<div class="wrap">
+  <div class="card">
+    <h1 id="title">Welcome back</h1>
+    <div class="tabs">
+      <button id="tab-login" class="on" onclick="showTab('login')">Sign in</button>
+      <button id="tab-register" onclick="showTab('register')">Create account</button>
+    </div>
+    <form onsubmit="return submitForm(event)">
+      <label for="email">Email</label>
+      <input id="email" type="email" required autocomplete="email">
+      <label for="password">Password</label>
+      <input id="password" type="password" required minlength="8" autocomplete="current-password">
+      <div class="msg" id="msg"></div>
+      <button class="btn" type="submit" id="submit-btn">Sign in</button>
+    </form>
+    <p class="note">Forgot your password? Email <a href="mailto:support@tomdocs.com">support@tomdocs.com</a></p>
+  </div>
+  <footer><a href="/terms">Terms</a>&middot;<a href="/refund">Refund Policy</a>&middot;<a href="/privacy">Privacy Policy</a></footer>
+</div>
+<script>
+let mode = "login";
+function showTab(m) {
+  mode = m;
+  document.getElementById("tab-login").className = m === "login" ? "on" : "";
+  document.getElementById("tab-register").className = m === "register" ? "on" : "";
+  document.getElementById("title").textContent = m === "login" ? "Welcome back" : "Create your account";
+  document.getElementById("submit-btn").textContent = m === "login" ? "Sign in" : "Create account";
+  const msg = document.getElementById("msg");
+  msg.textContent = ""; msg.className = "msg";
+}
+async function submitForm(ev) {
+  ev.preventDefault();
+  const msg = document.getElementById("msg");
+  msg.className = "msg"; msg.textContent = "";
+  try {
+    const res = await fetch("/api/auth/" + mode, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: document.getElementById("email").value.trim(),
+        password: document.getElementById("password").value,
+      }),
+    });
+    if (res.ok) { window.location.href = "/dashboard"; return false; }
+    const err = await res.json().catch(() => ({}));
+    msg.textContent = (err.detail && err.detail.message) || ("Error " + res.status);
+    msg.className = "msg err";
+  } catch (e) { msg.textContent = "Network error"; msg.className = "msg err"; }
+  return false;
+}
+</script>
+</body></html>"""
+
+DASH_HTML = r"""<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dashboard | DoIngest</title>
+<style>
+:root{--primary:#457b9d;--primary-dark:#1d3557;--bg:#f8f9fa;--bg-alt:#e9ecef;--text:#1a1a2e;--text-light:#555;--border:#dee2e6;--radius:8px;--shadow:0 2px 8px rgba(0,0,0,.08)}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',system-ui,sans-serif;color:var(--text);background:var(--bg);line-height:1.6}
+nav{background:var(--primary-dark);padding:.8rem 1.5rem;display:flex;justify-content:space-between;align-items:center}
+nav .brand{color:#fff;font-weight:700;font-size:1.1rem;text-decoration:none}
+nav button{background:transparent;border:1px solid #64748b;color:#cbd5e1;padding:.35rem .9rem;border-radius:6px;cursor:pointer;font-size:.85rem}
+.wrap{max-width:960px;margin:2rem auto;padding:0 1.5rem}
+.card{background:#fff;border-radius:var(--radius);box-shadow:var(--shadow);padding:1.5rem;margin-bottom:1.5rem}
+h1{font-size:1.5rem;color:var(--primary-dark);margin-bottom:.3rem}
+.sub{color:var(--text-light);font-size:.9rem;margin-bottom:1.5rem}
+h2{font-size:1.05rem;margin-bottom:.8rem;color:var(--primary-dark)}
+table{width:100%;border-collapse:collapse;font-size:.87rem}
+th,td{border:1px solid var(--border);padding:.5rem .7rem;text-align:left}
+th{background:var(--bg-alt)}
+.badge{display:inline-block;padding:.1rem .5rem;border-radius:10px;font-size:.75rem;font-weight:700}
+.b-free{background:#e0f2fe;color:#075985}.b-starter{background:#dcfce7;color:#166534}.b-pro{background:#fef9c3;color:#854d0e}.b-demo{background:#f1f5f9;color:#475569}
+.b-inactive{background:#fee2e2;color:#991b1b}
+.btn{display:inline-block;padding:.55rem 1.2rem;border:none;border-radius:6px;font-size:.88rem;font-weight:600;cursor:pointer;text-decoration:none}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-ghost{background:var(--bg-alt);color:var(--text)}
+.btn-danger{background:#fff;border:1px solid #fca5a5;color:#c1121f;padding:.3rem .7rem;font-size:.78rem}
+.btn:hover{opacity:.9}
+.row{display:flex;gap:.8rem;flex-wrap:wrap;align-items:end}
+label{display:block;font-size:.8rem;font-weight:600;margin-bottom:.2rem}
+input,select{padding:.5rem;border:1px solid var(--border);border-radius:6px;font-size:.88rem}
+.banner{display:none;background:#fff3cd;border:1px solid #ffc107;padding:.9rem 1rem;border-radius:var(--radius);margin-bottom:1rem;font-size:.9rem;word-break:break-all}
+.note{font-size:.8rem;color:var(--text-light);margin-top:.6rem}
+.usage{font-variant-numeric:tabular-nums}
+footer{text-align:center;padding:1.5rem;font-size:.78rem;color:#888}
+footer a{color:#888;margin:0 .5rem}
+.msg{font-size:.85rem;min-height:1em;margin-top:.5rem}.msg.err{color:#c1121f}.msg.ok{color:#2a9d34}
+</style></head>
+<body>
+<nav><a class="brand" href="/">DoIngest</a><button onclick="logout()">Log out</button></nav>
+<div class="wrap">
+  <h1>Dashboard</h1>
+  <p class="sub">Manage your API keys, usage, and subscription.</p>
+  <div class="banner" id="key-banner"></div>
+
+  <div class="card">
+    <h2>Your API keys</h2>
+    <div class="row" style="margin-bottom:1rem">
+      <div><label for="key-name">Key name</label><input id="key-name" placeholder="production" style="width:180px"></div>
+      <button class="btn btn-primary" onclick="createKey()">Create API key</button>
+    </div>
+    <div id="keys-table">Loading&hellip;</div>
+    <p class="note">Keys are shown only once at creation. The monthly page quota resets on the 1st of each UTC month.</p>
+  </div>
+
+  <div class="card">
+    <h2>Subscription &amp; billing</h2>
+    <div class="row">
+      <div><label for="up-key">API key</label><select id="up-key" style="min-width:220px"></select></div>
+      <button class="btn btn-primary" onclick="upgrade('starter')">Upgrade to Starter</button>
+      <button class="btn btn-primary" onclick="upgrade('pro')">Upgrade to Pro</button>
+      <button class="btn btn-ghost" onclick="openPortal()">Manage billing</button>
+    </div>
+    <p class="note">Upgrades open a secure Paddle checkout. Your key&rsquo;s plan and quota update automatically after payment.</p>
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+<footer><a href="/terms">Terms</a>&middot;<a href="/refund">Refund Policy</a>&middot;<a href="/privacy">Privacy Policy</a>&middot;<a href="/docs">Docs</a></footer>
+<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+<script>
+let PADDLE_OK = false;
+async function loadBillingConfig() {
+  try {
+    const cfg = await (await fetch("/v1/billing/config")).json();
+    if (cfg.client_token && cfg.environment !== "mock") {
+      Paddle.Environment.set(cfg.environment);
+      Paddle.Initialize({ token: cfg.client_token });
+      PADDLE_OK = true;
+    }
+  } catch (e) { console.warn("billing config unavailable"); }
+}
+function msg(text, ok) {
+  const m = document.getElementById("msg");
+  m.textContent = text; m.className = "msg " + (ok ? "ok" : "err");
+}
+function esc(s) { const d = document.createElement("div"); d.textContent = String(s); return d.innerHTML; }
+async function loadKeys() {
+  const res = await fetch("/api/keys");
+  if (res.status === 401) { window.location.href = "/login"; return; }
+  const data = await res.json();
+  const rows = data.keys.map(k =>
+    "<tr><td>" + esc(k.name) + "</td><td><code>" + esc(k.key_prefix) + "&hellip;</code></td>" +
+    "<td><span class='badge b-" + esc(k.plan) + "'>" + esc(k.plan) + "</span></td>" +
+    "<td class='usage'>" + k.used_pages + " / " + k.monthly_page_quota + "</td>" +
+    "<td>" + (k.active ? "<button class='btn btn-danger' onclick=\"revokeKey(" + k.id + ")\">Revoke</button>" : "<span class='badge b-inactive'>inactive</span>") + "</td></tr>");
+  document.getElementById("keys-table").innerHTML = rows.length
+    ? "<table><tr><th>Name</th><th>Key</th><th>Plan</th><th>Usage (pages/mo)</th><th></th></tr>" + rows.join("") + "</table>"
+    : "<p class='note'>No API keys yet &mdash; create your first key above.</p>";
+  const sel = document.getElementById("up-key");
+  sel.innerHTML = data.keys.filter(k => k.active).map(k => "<option value='" + k.id + "'>" + esc(k.key_prefix) + "&hellip; (" + esc(k.plan) + ")</option>").join("");
+}
+async function createKey() {
+  const name = document.getElementById("key-name").value.trim() || "default";
+  const res = await fetch("/api/keys", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: name }) });
+  if (res.status === 401) { window.location.href = "/login"; return; }
+  if (!res.ok) { msg("Failed to create key", false); return; }
+  const data = await res.json();
+  const banner = document.getElementById("key-banner");
+  banner.innerHTML = "<strong>&#9888; Your new API key (copy it now, shown only once):</strong><br><code style='font-size:1rem;color:#c1121f'>" + data.api_key + "</code><br><em>Plan: " + data.plan + " (" + data.monthly_page_quota + " pages/mo)</em>";
+  banner.style.display = "block";
+  await loadKeys();
+}
+async function revokeKey(id) {
+  if (!confirm("Revoke this API key? Requests using it will stop working immediately.")) return;
+  await fetch("/api/keys/" + id + "/revoke", { method: "POST" });
+  await loadKeys();
+}
+async function upgrade(plan) {
+  const keyId = document.getElementById("up-key").value;
+  if (!keyId) { msg("Create an API key first", false); return; }
+  if (!PADDLE_OK) { msg("Billing not available right now", false); return; }
+  try {
+    const res = await fetch("/api/billing/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key_id: parseInt(keyId, 10), plan: plan }) });
+    if (!res.ok) { const err = await res.json().catch(() => ({})); msg("Checkout failed: " + ((err.detail && err.detail.message) || res.status), false); return; }
+    const data = await res.json();
+    Paddle.Checkout.open({ transactionId: data.checkout_session_id });
+  } catch (e) { msg("Checkout failed: network error", false); }
+}
+async function openPortal() {
+  const keyId = document.getElementById("up-key").value;
+  if (!keyId) { msg("Create an API key first", false); return; }
+  try {
+    const res = await fetch("/api/billing/portal", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ key_id: parseInt(keyId, 10) }) });
+    if (!res.ok) { const err = await res.json().catch(() => ({})); msg("Portal error: " + ((err.detail && err.detail.message) || res.status), false); return; }
+    const data = await res.json();
+    window.open(data.portal_url, "_blank");
+  } catch (e) { msg("Portal error: network error", false); }
+}
+async function logout() { await fetch("/api/auth/logout", { method: "POST" }); window.location.href = "/"; }
+(async function init() { await loadBillingConfig(); await loadKeys(); })();
+</script>
+</body></html>"""
 
 _EMAIL_RE = re.compile(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
 
@@ -739,6 +982,7 @@ footer .copyright{text-align:center;font-size:.78rem;color:#64748b;border-top:1p
       <a href="#pricing">Pricing</a>
       <a href="/docs">Docs</a>
       <a href="https://github.com/user/doc-ingest-api">GitHub</a>
+      <a href="/login">Log in</a>
       <a href="mailto:support@tomdocs.com">Contact</a>
     </div>
   </div>
@@ -1357,6 +1601,235 @@ automatically within a minute.</p>
             filename="demo.pdf",
         )
 
+
+    # --- Auth & dashboard ---
+
+    _session_secret = (
+        settings.app_secret_key
+        or hashlib.sha256(
+            ("doingest-session:" + settings.database_url).encode("utf-8")
+        ).hexdigest()
+    )
+
+    def _current_user(request: Request) -> User | None:
+        """Resolve the signed-in user from the session cookie, if any."""
+        token = request.cookies.get(SESSION_COOKIE_NAME)
+        if not token:
+            return None
+        user_id = verify_session(token, _session_secret)
+        if user_id is None:
+            return None
+        with session_factory.begin() as db:
+            return db.get(User, user_id)
+
+    def _require_user(request: Request) -> User:
+        """Return the signed-in user or raise 401."""
+        user = _current_user(request)
+        if user is None:
+            raise _api_error(401, "login_required", "Sign in to continue")
+        return user
+
+    @router.post("/api/auth/register", tags=["auth"])
+    async def auth_register(request: Request) -> JSONResponse:
+        """Create an account (email + password) and start a session."""
+        try:
+            body = await request.json()
+        except Exception:
+            raise _api_error(422, "invalid_request", "Body must be JSON") from None
+        email = str(body.get("email") or "").strip().lower()
+        password = str(body.get("password") or "")
+        if not email or not _EMAIL_RE.match(email):
+            raise _api_error(422, "invalid_email", "Provide a valid email address")
+        if len(password) < 8:
+            raise _api_error(422, "weak_password", "Password must be at least 8 characters")
+        with session_factory.begin() as db:
+            existing = db.scalar(select(User).where(User.email == email))
+            if existing is not None:
+                raise _api_error(409, "email_exists", "An account with this email already exists")
+            user = User(email=email, password_hash=hash_password(password))
+            db.add(user)
+            db.flush()
+            user_id = user.id
+        response = JSONResponse({"user": {"id": user_id, "email": email}})
+        token = sign_session(user_id, _session_secret)
+        response.set_cookie(
+            SESSION_COOKIE_NAME, token, httponly=True, samesite="lax", max_age=SESSION_TTL_SECONDS
+        )
+        return response
+
+    @router.post("/api/auth/login", tags=["auth"])
+    async def auth_login(request: Request) -> JSONResponse:
+        """Sign in with email + password."""
+        try:
+            body = await request.json()
+        except Exception:
+            raise _api_error(422, "invalid_request", "Body must be JSON") from None
+        email = str(body.get("email") or "").strip().lower()
+        password = str(body.get("password") or "")
+        with session_factory.begin() as db:
+            user = db.scalar(select(User).where(User.email == email))
+            if user is None or not verify_password(password, user.password_hash):
+                raise _api_error(401, "invalid_credentials", "Invalid email or password")
+            user_id = user.id
+            user_email = user.email
+        response = JSONResponse({"user": {"id": user_id, "email": user_email}})
+        token = sign_session(user_id, _session_secret)
+        response.set_cookie(
+            SESSION_COOKIE_NAME, token, httponly=True, samesite="lax", max_age=SESSION_TTL_SECONDS
+        )
+        return response
+
+    @router.post("/api/auth/logout", tags=["auth"])
+    def auth_logout() -> JSONResponse:
+        """Clear the session cookie."""
+        response = JSONResponse({"ok": True})
+        response.delete_cookie(SESSION_COOKIE_NAME)
+        return response
+
+    @router.get("/api/keys", tags=["auth"])
+    def list_user_keys(request: Request) -> dict[str, Any]:
+        """List the signed-in user's API keys (metadata only, no secrets)."""
+        user = _require_user(request)
+        with session_factory.begin() as db:
+            rows = (
+                db.execute(
+                    select(ApiKey)
+                    .where(ApiKey.owner_user_id == user.id)
+                    .order_by(ApiKey.created_at.desc())
+                )
+                .scalars()
+                .all()
+            )
+            keys = [
+                {
+                    "id": row.id,
+                    "name": row.name,
+                    "key_prefix": row.key_prefix or "dip_...",
+                    "plan": row.plan,
+                    "monthly_page_quota": row.monthly_page_quota,
+                    "used_pages": row.used_pages,
+                    "active": row.active,
+                    "created_at": row.created_at.isoformat(),
+                }
+                for row in rows
+            ]
+        return {"keys": keys}
+
+    @router.post("/api/keys", tags=["auth"])
+    async def create_user_key(
+        request: Request,
+    ) -> dict[str, Any]:
+        """Create a new free-plan API key for the signed-in user.
+
+        The raw key is returned exactly once; only its hash is stored.
+        """
+        user = _require_user(request)
+        try:
+            body = await request.json()
+        except Exception:
+            body = {}
+        name = str((body or {}).get("name") or "default")
+        result = create_user_api_key(session_factory, user_id=user.id, name=name)
+        return {
+            "api_key": result["api_key"],
+            "key_prefix": result["key_prefix"],
+            "plan": "free",
+            "monthly_page_quota": FREE_PLAN_QUOTA,
+        }
+
+    @router.post("/api/keys/{key_id}/revoke", tags=["auth"])
+    def revoke_user_key(key_id: int, request: Request) -> dict[str, Any]:
+        """Deactivate one of the user's API keys."""
+        user = _require_user(request)
+        with session_factory.begin() as db:
+            key = db.get(ApiKey, key_id)
+            if key is None or key.owner_user_id != user.id:
+                raise _api_error(404, "key_not_found", "API key not found")
+            key.active = False
+        return {"ok": True, "id": key_id}
+
+    @router.post("/api/billing/checkout", tags=["auth"])
+    def dashboard_checkout(
+        request: Request,
+        body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Session-authenticated checkout creation for the dashboard."""
+        user = _require_user(request)
+        payload = body or {}
+        plan = str(payload.get("plan") or "starter")
+        if plan not in {"starter", "pro"}:
+            raise _api_error(422, "invalid_plan", "plan must be starter or pro")
+        key_id = payload.get("key_id")
+        if not key_id:
+            raise _api_error(422, "invalid_request", "key_id is required")
+        state = _app_state(request)
+        with session_factory.begin() as db:
+            key = db.get(ApiKey, int(key_id))
+            if key is None or key.owner_user_id != user.id:
+                raise _api_error(404, "key_not_found", "API key not found")
+            api_key_id = key.id
+        if state.billing_provider.provider_name == "paddle":
+            price_id = (
+                state.settings.paddle_price_starter
+                if plan == "starter"
+                else state.settings.paddle_price_pro
+            )
+        else:
+            price_id = f"price_test_{plan}"
+        session_result = state.billing_provider.create_checkout_session(
+            customer_id=f"cus_test_{api_key_id:08d}",
+            price_id=price_id,
+            api_key_id=api_key_id,
+            success_url="https://tomdocs.com/billing/success",
+            cancel_url="https://tomdocs.com/",
+        )
+        return {
+            "billing_provider": session_result.provider,
+            "checkout_session_id": session_result.id,
+            "checkout_url": session_result.url,
+            "customer_id": session_result.customer_id,
+            "price_id": session_result.price_id,
+        }
+
+    @router.post("/api/billing/portal", tags=["auth"])
+    def dashboard_portal(
+        request: Request,
+        body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Session-authenticated customer portal session."""
+        user = _require_user(request)
+        payload = body or {}
+        key_id = payload.get("key_id")
+        if not key_id:
+            raise _api_error(422, "invalid_request", "key_id is required")
+        state = _app_state(request)
+        with session_factory.begin() as db:
+            key = db.get(ApiKey, int(key_id))
+            if key is None or key.owner_user_id != user.id:
+                raise _api_error(404, "key_not_found", "API key not found")
+            api_key = key
+        if state.settings.paddle_env in ("sandbox", "live"):
+            customer_id = api_key.paddle_customer_id
+            if not customer_id:
+                raise _api_error(
+                    404, "no_subscription", "No active subscription found; subscribe first"
+                )
+            portal_url = state.billing_provider.create_portal_session(customer_id)
+            return {"billing_provider": "paddle", "portal_url": portal_url}
+        portal_url = state.billing_provider.create_portal_session(f"cus_test_{api_key.id:08d}")
+        return {"billing_provider": state.billing_provider.provider_name, "portal_url": portal_url}
+
+    @router.get("/login", tags=["auth"], response_class=HTMLResponse, include_in_schema=False)
+    def login_page() -> HTMLResponse:
+        """Serve the combined sign-in / create-account page."""
+        return HTMLResponse(content=LOGIN_HTML)
+
+    @router.get("/dashboard", tags=["auth"], response_class=HTMLResponse, include_in_schema=False)
+    def dashboard_page(request: Request) -> Any:
+        """Serve the customer dashboard (requires sign-in)."""
+        if _current_user(request) is None:
+            return RedirectResponse("/login", status_code=303)
+        return HTMLResponse(content=DASH_HTML)
 
     # --- Legal pages (Paddle domain review requirement) ---
 

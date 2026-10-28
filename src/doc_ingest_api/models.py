@@ -43,7 +43,23 @@ class ApiKey(Base):
     owner_email: Mapped[str | None] = mapped_column(
         String(255), nullable=True, default=None
     )
+    key_prefix: Mapped[str | None] = mapped_column(String(16), nullable=True, default=None)
+    owner_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"), nullable=True, default=None, index=True
+    )
     period_start: Mapped[date] = mapped_column(Date, default=current_period_start)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+
+
+class User(Base):
+    """A registered customer account."""
+
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    email_verified: Mapped[bool] = mapped_column(default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
 
 

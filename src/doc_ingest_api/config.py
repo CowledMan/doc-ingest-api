@@ -20,6 +20,9 @@ class Settings(BaseSettings):
     parser_timeout_seconds: float = 120.0
     confidence_threshold: float = 0.6
     monthly_page_quota: int = 500
+    # Signs session cookies. Leave empty to derive a stable secret from the
+    # database URL (fine for single-instance deployments).
+    app_secret_key: str = ""
     webhook_url: str | None = None
     webhook_timeout_seconds: float = 10.0
 

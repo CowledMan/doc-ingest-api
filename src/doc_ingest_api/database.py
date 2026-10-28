@@ -39,6 +39,8 @@ class Database:
         migrations = [
             ("paddle_customer_id", "VARCHAR(64)"),
             ("owner_email", "VARCHAR(255)"),
+            ("key_prefix", "VARCHAR(16)"),
+            ("owner_user_id", "INTEGER"),
         ]
         with self.engine.begin() as conn:
             for column_name, column_type in migrations:
