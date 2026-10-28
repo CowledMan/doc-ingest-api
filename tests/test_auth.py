@@ -195,7 +195,8 @@ class TestKeyManagement:
 
 class TestDemoFlowUnaffected:
     def test_demo_keys_still_work(self, auth_client: TestClient) -> None:
-        res = auth_client.post("/v1/demo-keys", json={"email": "d@example.com"})
+        _register(auth_client, email="demo-user@example.com")
+        res = auth_client.post("/v1/demo-keys")
         assert res.status_code == 200
         assert res.json()["api_key"].startswith("dip_")
 

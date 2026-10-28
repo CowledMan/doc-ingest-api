@@ -15,6 +15,15 @@ from doc_ingest_api.security import create_api_key
 from tests.test_api import MockParser
 
 
+def _register_user(client: TestClient, email: str) -> None:
+    """Register a throwaway account for demo-key tests."""
+    res = client.post(
+        "/api/auth/register",
+        json={"email": email, "password": "hunter2boogaloo"},
+    )
+    assert res.status_code == 200
+
+
 def _app_with_rate_limits(
     parser: Any,
     **overrides: Any,
@@ -196,6 +205,7 @@ class TestDemoKeys:
     def test_create_demo_key_and_parse(self) -> None:
         parser = MockParser("markitdown", markdown="# Demo", metadata={"page_count": 1})
         client, _ = _app_with_rate_limits(parser, ip_limit=100)
+        _register_user(client, "mk1@example.com")
         demo = client.post("/v1/demo-keys")
         assert demo.status_code == 200
         data = demo.json()
@@ -216,6 +226,7 @@ class TestDemoKeys:
     def test_demo_key_quota_is_20_pages(self) -> None:
         parser = MockParser("markitdown", markdown="# Demo", metadata={"page_count": 1})
         client, _ = _app_with_rate_limits(parser, ip_limit=100, key_limit=100)
+        _register_user(client, "mk2@example.com")
         demo = client.post("/v1/demo-keys")
         api_key = demo.json()["api_key"]
         headers = {"X-API-Key": api_key}
@@ -234,16 +245,17 @@ class TestDemoKeys:
         )
         assert response.status_code == 429
 
-    def test_demo_keys_ip_rate_limited(self) -> None:
-        client, _ = _app_with_rate_limits(MockParser("markitdown"), ip_limit=2)
-        assert client.post("/v1/demo-keys").status_code == 200
+    def test_demo_keys_limited_per_user(self) -> None:
+        client, _ = _app_with_rate_limits(MockParser("markitdown"), ip_limit=100)
+        _register_user(client, "mk3@example.com")
         assert client.post("/v1/demo-keys").status_code == 200
         response = client.post("/v1/demo-keys")
-        assert response.status_code == 429
-        assert "Retry-After" in response.headers
+        assert response.status_code == 409
+        assert response.json()["detail"]["code"] == "demo_key_exists"
 
     def test_demo_keys_response_has_sample_file_url(self) -> None:
         client, _ = _app_with_rate_limits(MockParser("markitdown"), ip_limit=100)
+        _register_user(client, "mk4@example.com")
         demo = client.post("/v1/demo-keys")
         data = demo.json()
         assert data["sample_file_url"] == "/samples/demo.pdf"
@@ -251,6 +263,7 @@ class TestDemoKeys:
     def test_demo_parse_response_has_upgrade_url(self) -> None:
         parser = MockParser("markitdown", markdown="# Demo", metadata={"page_count": 1})
         client, _ = _app_with_rate_limits(parser, ip_limit=100, key_limit=100)
+        _register_user(client, "mk5@example.com")
         demo = client.post("/v1/demo-keys")
         headers = {"X-API-Key": demo.json()["api_key"]}
         response = client.post(

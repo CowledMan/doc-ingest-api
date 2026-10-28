@@ -38,6 +38,15 @@ def _app(**overrides: Any) -> tuple[TestClient, Any]:
     return TestClient(app), database
 
 
+def register_demo_user(client: TestClient, email: str) -> bool:
+    """Register a throwaway account; returns True when newly created."""
+    res = client.post(
+        "/api/auth/register",
+        json={"email": email, "password": "hunter2boogaloo"},
+    )
+    return res.status_code == 200
+
+
 class TestOwnerEmailMigration:
     """owner_email column exists and is written on demo-keys with email."""
 
@@ -48,6 +57,10 @@ class TestOwnerEmailMigration:
 
     def test_demo_key_with_email_writes_owner(self) -> None:
         client, database = _app()
+        client.post(
+            "/api/auth/register",
+            json={"email": "owner@example.com", "password": "hunter2boogaloo"},
+        )
         response = client.post(
             "/v1/demo-keys",
             json={"email": "owner@example.com"},
@@ -64,6 +77,7 @@ class TestOwnerEmailMigration:
 
     def test_demo_key_without_email_has_none(self) -> None:
         client, database = _app()
+        assert register_demo_user(client, "owner2@example.com")
         response = client.post("/v1/demo-keys")
         assert response.status_code == 200
         raw_key = response.json()["api_key"]
@@ -77,6 +91,7 @@ class TestOwnerEmailMigration:
 
     def test_demo_key_invalid_email_returns_422(self) -> None:
         client, _db = _app()
+        assert register_demo_user(client, "owner3@example.com")
         response = client.post("/v1/demo-keys", json={"email": "not-an-email"})
         assert response.status_code == 422
 
@@ -86,6 +101,7 @@ class TestKeyRecovery:
 
     def test_recover_returns_new_keys(self) -> None:
         client, database = _app()
+        assert register_demo_user(client, "recover@example.com")
         raw_key = client.post(
             "/v1/demo-keys", json={"email": "recover@example.com"}
         ).json()["api_key"]
@@ -103,6 +119,7 @@ class TestKeyRecovery:
 
     def test_recover_deactivates_old_keys(self) -> None:
         client, database = _app()
+        assert register_demo_user(client, "recover@example.com")
         raw_key = client.post(
             "/v1/demo-keys", json={"email": "recover@example.com"}
         ).json()["api_key"]
@@ -118,6 +135,7 @@ class TestKeyRecovery:
 
     def test_recover_preserves_paddle_customer_id(self) -> None:
         client, database = _app()
+        assert register_demo_user(client, "sub@example.com")
         raw_key = client.post(
             "/v1/demo-keys", json={"email": "sub@example.com"}
         ).json()["api_key"]
@@ -160,6 +178,7 @@ class TestKeyRecovery:
 
     def test_recovered_key_is_usable(self) -> None:
         client, database = _app()
+        assert register_demo_user(client, "usable@example.com")
         client.post("/v1/demo-keys", json={"email": "usable@example.com"})
         response = client.post(
             "/v1/keys/recover", json={"email": "usable@example.com"}

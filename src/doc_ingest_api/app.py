@@ -874,7 +874,7 @@ def create_app(
 
             plan_quotas = {"free": 5, "starter": 500, "pro": 5000}
             paddle_customer_id = event_data.get("customer_id", "")
-            if event_type in ("subscription.created", "subscription.updated", "subscription.canceled") and api_key_id:
+            if event_type in ("subscription.created", "subscription.updated", "subscription.canceled"):
                 if event_type == "subscription.canceled":
                     plan = "free"
                 else:
@@ -885,7 +885,43 @@ def create_app(
                         plan = str(price_custom.get("plan", "free"))
                 quota = plan_quotas.get(plan, 5)
                 with state.session_factory.begin() as db:
-                    key = db.get(ApiKey, int(api_key_id))
+                    key: ApiKey | None = None
+                    if api_key_id:
+                        key = db.get(ApiKey, int(api_key_id))
+                    if key is None and paddle_customer_id:
+                        key = db.scalar(
+                            select(ApiKey)
+                            .where(ApiKey.paddle_customer_id == str(paddle_customer_id))
+                            .order_by(ApiKey.created_at.desc())
+                        )
+                    if key is None and event_type != "subscription.canceled":
+                        # Auto-generate a key for the subscription when the
+                        # checkout did not carry a key reference.
+                        customer = event_data.get("customer") or {}
+                        customer_email = str(customer.get("email") or "").strip().lower()
+                        owner_user_id: int | None = None
+                        if customer_email:
+                            user_row = db.scalar(
+                                select(User).where(User.email == customer_email)
+                            )
+                            owner_user_id = user_row.id if user_row else None
+                        raw_key = generate_api_key()
+                        key = ApiKey(
+                            name="subscription",
+                            key_hash=hash_api_key(raw_key),
+                            key_prefix=key_prefix(raw_key),
+                            monthly_page_quota=quota,
+                            used_pages=0,
+                            active=True,
+                            plan=plan,
+                            paddle_customer_id=(
+                                str(paddle_customer_id) if paddle_customer_id else None
+                            ),
+                            owner_email=customer_email or None,
+                            owner_user_id=owner_user_id,
+                        )
+                        db.add(key)
+                        db.flush()
                     if key is not None:
                         key.plan = plan
                         key.monthly_page_quota = quota
@@ -1547,7 +1583,7 @@ footer .copyright{text-align:center;font-size:.75rem;color:#64748b;border-top:1p
   <table>
     <tr><th>Method</th><th>Path</th><th>Description</th><th>Auth</th></tr>
     <tr><td><span class="method m-get">GET</span></td><td><code>/healthz</code></td><td>Liveness probe</td><td>No</td></tr>
-    <tr><td><span class="method m-post">POST</span></td><td><code>/v1/demo-keys</code></td><td>Create demo key (20 pages/24h)</td><td>No</td></tr>
+    <tr><td><span class="method m-post">POST</span></td><td><code>/v1/demo-keys</code></td><td>Create demo key (20 pages/24h)</td><td>Session</td></tr>
     <tr><td><span class="method m-post">POST</span></td><td><code>/v1/parse</code></td><td>Parse a document synchronously</td><td><span class="tag">API Key</span></td></tr>
     <tr><td><span class="method m-post">POST</span></td><td><code>/v1/parse/async</code></td><td>Queue a document for parsing</td><td><span class="tag">API Key</span></td></tr>
     <tr><td><span class="method m-get">GET</span></td><td><code>/v1/jobs/{job_id}</code></td><td>Check async job status</td><td><span class="tag">API Key</span></td></tr>
@@ -1694,31 +1730,48 @@ automatically within a minute.</p>
         request: Request,
         session: Annotated[Session, Depends(_get_db)],
     ) -> dict[str, Any]:
-        """Create a no-signup demo API key (20 pages, 24-hour expiry).
+        """Create a time-limited demo API key (requires sign-in).
 
-        Optional ``email`` in the body binds the key to an owner for recovery.
+        The demo key (20 pages, 24-hour expiry) is bound to the signed-in
+        account; each account may hold at most one active demo key.
         """
         state = _app_state(request)
+        user = _require_user(request)
         body: dict[str, Any] = {}
         with contextlib.suppress(Exception):
             body = await request.json()
         email = body.get("email") if isinstance(body, dict) else None
         if email is not None and (not isinstance(email, str) or not _EMAIL_RE.match(email)):
             raise _api_error(422, "invalid_email", "Provide a valid email address")
-        raw_key = generate_api_key()
-        now = datetime.now(UTC)
-        expires = now + timedelta(hours=24)
         with state.session_factory.begin() as db:
+            existing_demo = db.scalar(
+                select(ApiKey).where(
+                    ApiKey.owner_user_id == user.id,
+                    ApiKey.plan == "demo",
+                    ApiKey.active == True,  # noqa: E712
+                )
+            )
+            if existing_demo is not None:
+                raise _api_error(
+                    409,
+                    "demo_key_exists",
+                    "You already have an active demo key. Revoke it from the dashboard first.",
+                )
+            raw_key = generate_api_key()
+            now = datetime.now(UTC)
+            expires = now + timedelta(hours=24)
             db.add(
                 ApiKey(
                     name="demo",
                     key_hash=hash_api_key(raw_key),
+                    key_prefix=key_prefix(raw_key),
                     monthly_page_quota=20,
                     used_pages=0,
                     active=True,
                     plan="demo",
                     expires_at=expires,
-                    owner_email=email,
+                    owner_email=email if isinstance(email, str) else None,
+                    owner_user_id=user.id,
                 )
             )
         return {
@@ -1915,6 +1968,13 @@ automatically within a minute.</p>
             key = db.get(ApiKey, key_id)
             if key is None or key.owner_user_id != user.id:
                 raise _api_error(404, "key_not_found", "API key not found")
+            if key.plan in ("starter", "pro"):
+                raise _api_error(
+                    409,
+                    "subscription_active",
+                    "This key has an active subscription. "
+                    "Cancel it via Manage billing before revoking.",
+                )
             key.active = False
         return {"ok": True, "id": key_id}
 

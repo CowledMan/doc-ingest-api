@@ -166,3 +166,43 @@ class TestFirstKeyFreeAllowance:
         client.post(f"/api/keys/{keys[0]['id']}/revoke")
         fresh = client.post("/api/keys", json={"name": "fresh"}).json()
         assert fresh["monthly_page_quota"] == 5
+
+
+class TestDemoKeyAuth:
+    def test_anonymous_rejected(self, client: TestClient) -> None:
+        res = client.post("/v1/demo-keys")
+        assert res.status_code == 401
+
+    def test_one_active_demo_per_user(self, client: TestClient) -> None:
+        _register(client)
+        assert client.post("/v1/demo-keys").status_code == 200
+        res = client.post("/v1/demo-keys")
+        assert res.status_code == 409
+        assert res.json()["detail"]["code"] == "demo_key_exists"
+
+
+class TestPaidKeyProtection:
+    def test_cannot_revoke_subscribed_key(self) -> None:
+        settings = _settings()
+        database = create_database(settings.database_url)
+        database.create_all()
+        app: FastAPI = create_app(settings, session_factory=database.session_factory)
+        with TestClient(app) as test_client:
+            _register(test_client, email="paid@example.com")
+            assert test_client.post("/api/keys", json={"name": "paid"}).status_code == 200
+            key_id = test_client.get("/api/keys").json()["keys"][0]["id"]
+            from doc_ingest_api.models import ApiKey
+
+            with database.session_factory.begin() as db:
+                key = db.get(ApiKey, key_id)
+                key.plan = "starter"
+                key.monthly_page_quota = 500
+            res = test_client.post(f"/api/keys/{key_id}/revoke")
+            assert res.status_code == 409
+            assert res.json()["detail"]["code"] == "subscription_active"
+            # After the subscription ends (plan back to free), revoke works.
+            with database.session_factory.begin() as db:
+                key = db.get(ApiKey, key_id)
+                key.plan = "free"
+                key.monthly_page_quota = 5
+            assert test_client.post(f"/api/keys/{key_id}/revoke").status_code == 200

@@ -329,3 +329,82 @@ def _paddle_app_with_db(**overrides: Any) -> tuple[TestClient, Any]:
     return TestClient(app), database
 
 
+def test_webhook_without_key_reference_auto_generates_key() -> None:
+    """subscription.created with no custom_data.api_key_id creates a key."""
+    client, database = _paddle_app_with_db()
+    # Register an account with the customer email so the key is linked.
+    reg = client.post(
+        "/api/auth/register",
+        json={"email": "buyer@example.com", "password": "hunter2boogaloo"},
+    )
+    assert reg.status_code == 200
+    body = json.dumps({
+        "event_id": "evt_auto_001",
+        "event_type": "subscription.created",
+        "occurred_at": "2026-01-01T00:00:00Z",
+        "data": {
+            "id": "sub_01auto",
+            "status": "active",
+            "customer_id": "ctm_01auto",
+            "customer": {"email": "buyer@example.com"},
+            "items": [{
+                "price": {
+                    "id": "pri_01auto",
+                    "custom_data": {"plan": "starter", "monthly_pages": 500},
+                }
+            }],
+            "custom_data": {},
+        },
+    }).encode("utf-8")
+    response = client.post(
+        "/v1/billing/webhook",
+        content=body,
+        headers={
+            "Paddle-Signature": _make_signature(body, TEST_SECRET),
+            "Content-Type": "application/json",
+        },
+    )
+    assert response.status_code == 200
+    from doc_ingest_api.models import ApiKey, User
+
+    with database.session_factory() as session:
+        user = session.query(User).filter(User.email == "buyer@example.com").one()
+        keys = (
+            session.query(ApiKey)
+            .filter(ApiKey.paddle_customer_id == "ctm_01auto")
+            .all()
+        )
+        assert len(keys) == 1
+        assert keys[0].plan == "starter"
+        assert keys[0].monthly_page_quota == 500
+        assert keys[0].owner_user_id == user.id
+        assert keys[0].owner_email == "buyer@example.com"
+
+
+def test_canceled_subscription_does_not_create_key() -> None:
+    client, database = _paddle_app_with_db()
+    body = json.dumps({
+        "event_id": "evt_cancel_001",
+        "event_type": "subscription.canceled",
+        "occurred_at": "2026-01-01T00:00:00Z",
+        "data": {
+            "id": "sub_01cancel",
+            "status": "canceled",
+            "customer_id": "ctm_01unknown",
+            "items": [],
+            "custom_data": {},
+        },
+    }).encode("utf-8")
+    response = client.post(
+        "/v1/billing/webhook",
+        content=body,
+        headers={
+            "Paddle-Signature": _make_signature(body, TEST_SECRET),
+            "Content-Type": "application/json",
+        },
+    )
+    assert response.status_code == 200
+    from doc_ingest_api.models import ApiKey
+
+    with database.session_factory() as session:
+        assert session.query(ApiKey).count() == 0
